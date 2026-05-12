@@ -510,6 +510,7 @@ async function fetchViaAI(prompt) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [step, setStep] = useState(0); // 0=choose match, 1=add entrants, 2=pick players, 3=winner
+  const [competition, setCompetition] = useState('pl'); // 'pl' or 'ucl'
   const [matches, setMatches] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
@@ -528,22 +529,33 @@ export default function App() {
     loadMatches();
   }, []);
 
-  async function loadMatches() {
+  async function loadMatches(comp) {
+    const c = comp || competition;
     setLoadingMatches(true);
     setMatchesError(null);
-    // Confirmed PL fixtures week of 11–18 May 2026
-    setMatches([
-      { home: "Tottenham Hotspur", away: "Leeds United",      date: "Mon 11 May", time: "20:00" },
-      { home: "Manchester City",   away: "Crystal Palace",    date: "Wed 13 May", time: "19:30" },
-      { home: "Aston Villa",       away: "Liverpool",         date: "Fri 15 May", time: "20:00" },
-      { home: "Arsenal",           away: "Burnley",           date: "Sun 18 May", time: "16:00" },
-      { home: "Brentford",         away: "Crystal Palace",    date: "Sun 18 May", time: "16:00" },
-      { home: "Chelsea",           away: "Tottenham Hotspur", date: "Sun 18 May", time: "16:00" },
-      { home: "Everton",           away: "Sunderland",        date: "Sun 18 May", time: "16:00" },
-      { home: "Leeds United",      away: "Brighton",          date: "Sun 18 May", time: "16:00" },
-      { home: "Newcastle United",  away: "West Ham United",   date: "Sun 18 May", time: "16:00" },
-      { home: "Wolves",            away: "Fulham",            date: "Sun 18 May", time: "16:00" },
-    ]);
+    const compName = c === 'ucl' ? 'UEFA Champions League' : 'Premier League';
+    const today = new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    try {
+      const result = await fetchViaAI(
+        `Search for upcoming ${compName} fixtures from today (${today}) for the next 14 days.
+Return ONLY a JSON array of up to 12 matches (no other text, no markdown fences).
+Each object must have exactly these keys: { "home": "Team A", "away": "Team B", "date": "Mon 11 May", "time": "20:00" }.
+Use 24hr UK time. Order by date/time ascending. No extra keys. Real fixtures only.`
+      );
+      setMatches(result);
+      setMatchesError(null);
+    } catch (e) {
+      // Fallback fixtures
+      if (c === 'ucl') {
+        setMatches([
+          { home: "PSG",           away: "Arsenal",        date: "Tue 13 May", time: "20:00" },
+          { home: "Inter Milan",   away: "Barcelona",      date: "Wed 14 May", time: "20:00" },
+        ]);
+      } else {
+        setMatches([]);
+      }
+      setMatchesError("Couldn't fetch live fixtures — showing recent known fixtures.");
+    }
     setLoadingMatches(false);
   }
 
@@ -552,7 +564,7 @@ export default function App() {
     setTeamSheet(null);
     try {
       const result = await fetchViaAI(
-        `Search for the expected or confirmed starting lineup for ${match.home} vs ${match.away} in the Premier League in 2026.
+        `Search for the expected or confirmed starting lineup for ${match.home} vs ${match.away} in 2026.
 Return ONLY a JSON array (no other text, no markdown) with exactly 2 objects:
 [
   { "team": "${match.home}", "colour": "#red_or_relevant_hex", "players": [ { "number": 1, "name": "Player Name", "pos": "GK" }, ... ] },
@@ -683,7 +695,24 @@ Use real player names for these clubs. No extra keys.`
   return (
     <div className="app">
       <div className="header">
-        <div className="header-badge">⚽ Premier League</div>
+        <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:12}}>
+          <div
+            onClick={() => { setCompetition('pl'); setSelectedMatch(null); loadMatches('pl'); }}
+            style={{cursor:"pointer",fontFamily:"var(--font-head)",fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",
+              padding:"4px 14px",borderRadius:20,border:"1px solid",
+              borderColor: competition==='pl' ? "var(--green)" : "var(--border)",
+              color: competition==='pl' ? "var(--green)" : "var(--muted)",
+              background: competition==='pl' ? "var(--green-dim)" : "transparent"
+            }}>⚽ Premier League</div>
+          <div
+            onClick={() => { setCompetition('ucl'); setSelectedMatch(null); loadMatches('ucl'); }}
+            style={{cursor:"pointer",fontFamily:"var(--font-head)",fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",
+              padding:"4px 14px",borderRadius:20,border:"1px solid",
+              borderColor: competition==='ucl' ? "#c9a227" : "var(--border)",
+              color: competition==='ucl' ? "#c9a227" : "var(--muted)",
+              background: competition==='ucl' ? "#c9a22720" : "transparent"
+            }}>⭐ Champions League</div>
+        </div>
         <h1>Football Friends<br/>1st Goal Scorer</h1>
         <p>Pick a player · £1 entry · Winner takes all</p>
       </div>
@@ -705,7 +734,7 @@ Use real player names for these clubs. No extra keys.`
             {loadingMatches ? (
               <div className="loading-wrap">
                 <div className="spinner" />
-                <p>Fetching Premier League fixtures…</p>
+                <p>Fetching {competition === "ucl" ? "Champions League" : "Premier League"} fixtures…</p>
               </div>
             ) : (
               <>

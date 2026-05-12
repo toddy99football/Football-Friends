@@ -549,19 +549,21 @@ export default function App() {
         const saved = localStorage.getItem("ff_session");
         if (saved) {
           const session = JSON.parse(saved);
-          const data = await apiCall("/api/game", { action:"get", gameId:session.gameId });
-          if (data.game) {
-            setGame(data.game);
-            setMyName(session.myName);
-            setIsAdmin(session.isAdmin);
-            if (data.game.winner || data.game.status === "results") setScreen("results");
-            else if (data.game.status === "picking") { setScreen("picking"); loadTeamSheet(data.game.match); }
-            else setScreen("lobby");
-            loadMatches("pl");
-            return;
+          if (session && session.gameId) {
+            const data = await apiCall("/api/game", { action:"get", gameId:session.gameId });
+            if (data && data.game && data.game.players) {
+              setGame(data.game);
+              setMyName(session.myName || "");
+              setIsAdmin(session.isAdmin || false);
+              if (data.game.winner || data.game.status === "results") setScreen("results");
+              else if (data.game.status === "picking") { setScreen("picking"); loadTeamSheet(data.game.match); }
+              else setScreen("lobby");
+              loadMatches("pl");
+              return;
+            }
           }
         }
-      } catch {}
+      } catch { localStorage.removeItem("ff_session"); }
       loadMatches("pl");
     }
     init();

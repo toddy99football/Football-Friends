@@ -539,10 +539,11 @@ export default function App() {
     const today = new Date().toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
     try {
       const result = await fetchViaAI(
-        `Search for upcoming ${compName} fixtures from today (${today}) for the next 14 days.
-Return ONLY a JSON array of up to 12 matches (no other text, no markdown fences).
-Each object must have exactly these keys: { "home": "Team A", "away": "Team B", "date": "Mon 11 May", "time": "20:00" }.
-Use 24hr UK time. Order by date/time ascending. No extra keys. Real fixtures only.`
+        `Search for the ${compName} fixture schedule for the next 14 days from ${today}.
+Find all confirmed matches and return ONLY a raw JSON array with no explanation, no markdown, no code fences.
+Format: [{"home":"Team A","away":"Team B","date":"Mon 11 May","time":"20:00"}]
+Rules: 24hr UK kickoff times, order by date ascending, maximum 12 matches, no extra fields.
+Example Premier League fixtures to include if found: any matches from gameweeks 37 or 38 of the 2025-26 season.`
       );
       setMatches(result);
       setMatchesError(null);

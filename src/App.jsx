@@ -542,16 +542,37 @@ export default function App() {
   const [error, setError] = useState(null);
   const [polling, setPolling] = useState(false);
 
-  // Check URL for game code on load
+  // Restore session or init
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const gameCode = params.get("game");
-    if (gameCode) {
-      // Pre-fill join mode
-      setScreen("home");
+    async function init() {
+      try {
+        const saved = localStorage.getItem("ff_session");
+        if (saved) {
+          const session = JSON.parse(saved);
+          const data = await apiCall("/api/game", { action:"get", gameId:session.gameId });
+          if (data.game) {
+            setGame(data.game);
+            setMyName(session.myName);
+            setIsAdmin(session.isAdmin);
+            if (data.game.winner || data.game.status === "results") setScreen("results");
+            else if (data.game.status === "picking") { setScreen("picking"); loadTeamSheet(data.game.match); }
+            else setScreen("lobby");
+            loadMatches("pl");
+            return;
+          }
+        }
+      } catch {}
+      loadMatches("pl");
     }
-    loadMatches("pl");
+    init();
   }, []);
+
+  // Save session whenever game state changes
+  useEffect(() => {
+    if (game && myName) {
+      localStorage.setItem("ff_session", JSON.stringify({ gameId:game.id, myName, isAdmin }));
+    }
+  }, [game, myName, isAdmin]);
 
   // Poll game state every 5s when in lobby/picking/results
   useEffect(() => {
@@ -720,9 +741,9 @@ export default function App() {
         <h1>Football Friends<br/>1st Goal Scorer</h1>
         <p>Pick a player · £1 entry · Winner takes all</p>
         {game && (
-          <div style={{marginTop:8,fontSize:12,color:"var(--muted)"}}>
-            Game: <strong style={{color:"var(--text)"}}>{game.id}</strong>
-            {myName && <span> · {myName}{isAdmin?" (Admin)":""}</span>}
+          <div style={{marginTop:8,fontSize:12,color:"var(--muted)",display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
+            <span>Game: <strong style={{color:"var(--text)"}}>{game.id}</strong> · {myName}{isAdmin?" (Admin)":""}</span>
+            <span style={{cursor:"pointer",color:"var(--red)",fontSize:11,fontFamily:"var(--font-head)",fontWeight:700,letterSpacing:1,textTransform:"uppercase"}} onClick={() => { localStorage.removeItem("ff_session"); setGame(null); setMyName(""); setIsAdmin(false); setScreen("home"); window.history.pushState({},"","/"); }}>✕ Leave</span>
           </div>
         )}
       </div>

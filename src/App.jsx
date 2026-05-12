@@ -221,46 +221,75 @@ function AvailBadge({ match }) {
 
 // Home — create or join
 function HomeScreen({ onCreate, onJoin }) {
-  const [joinCode, setJoinCode] = useState("");
   const [name, setName] = useState("");
-  const [mode, setMode] = useState(null); // 'create' or 'join'
+  const [joinCode, setJoinCode] = useState("");
+  const [mode, setMode] = useState(null);
+
+  // Auto-detect game code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("game");
+    if (code) {
+      setJoinCode(code.toUpperCase());
+      setMode("join");
+    }
+  }, []);
 
   return (
     <div className="container">
-      <div style={{textAlign:"center",marginBottom:32}}>
-        <div style={{fontSize:48,marginBottom:8}}>⚽</div>
-        <div style={{fontFamily:"var(--font-head)",fontSize:13,color:"var(--muted)",letterSpacing:3,textTransform:"uppercase",marginBottom:24}}>
-          How do you want to play?
+      {!mode && (
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontSize:48,marginBottom:8}}>⚽</div>
+          <div style={{fontFamily:"var(--font-head)",fontSize:13,color:"var(--muted)",letterSpacing:3,textTransform:"uppercase",marginBottom:24}}>
+            How do you want to play?
+          </div>
+          <div style={{display:"grid",gap:12}}>
+            <button className="btn btn-primary" onClick={() => setMode('create')}>
+              🏆 Create a New Game
+            </button>
+            <button className="btn btn-ghost" style={{width:"100%"}} onClick={() => setMode('join')}>
+              🔗 Join a Game
+            </button>
+          </div>
         </div>
-        <div style={{display:"grid",gap:12}}>
-          <button className="btn btn-primary" onClick={() => setMode('create')}>
-            🏆 Create a New Game
-          </button>
-          <button className="btn btn-ghost" style={{width:"100%"}} onClick={() => setMode('join')}>
-            🔗 Join a Game
-          </button>
-        </div>
-      </div>
+      )}
 
       {mode === 'create' && (
         <div className="card green-border">
+          <div style={{fontFamily:"var(--font-head)",fontSize:22,fontWeight:900,textTransform:"uppercase",marginBottom:16}}>Create Game</div>
           <div className="section-label">Your Name</div>
           <input className="input-field" placeholder="Enter your name…" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key==="Enter" && name.trim() && onCreate(name.trim())} autoFocus />
           <button className="btn btn-primary" disabled={!name.trim()} onClick={() => onCreate(name.trim())}>
             Create Game →
           </button>
+          <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:8}} onClick={() => setMode(null)}>← Back</button>
         </div>
       )}
 
       {mode === 'join' && (
         <div className="card green-border">
+          <div style={{fontFamily:"var(--font-head)",fontSize:22,fontWeight:900,textTransform:"uppercase",marginBottom:16}}>
+            {joinCode ? `Joining Game ${joinCode}` : "Join a Game"}
+          </div>
           <div className="section-label">Your Name</div>
-          <input className="input-field" placeholder="Enter your name…" value={name} onChange={e => setName(e.target.value)} />
-          <div className="section-label" style={{marginTop:8}}>Game Code</div>
-          <input className="input-field" placeholder="e.g. ABC12345" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} onKeyDown={e => e.key==="Enter" && name.trim() && joinCode.trim() && onJoin(name.trim(), joinCode.trim())} />
+          <input
+            className="input-field"
+            placeholder="Enter your name…"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key==="Enter" && name.trim() && joinCode.trim() && onJoin(name.trim(), joinCode.trim())}
+            autoFocus
+          />
+          {!joinCode && (
+            <>
+              <div className="section-label">Game Code</div>
+              <input className="input-field" placeholder="e.g. ABC12345" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} />
+            </>
+          )}
           <button className="btn btn-primary" disabled={!name.trim()||!joinCode.trim()} onClick={() => onJoin(name.trim(), joinCode.trim())}>
             Join Game →
           </button>
+          <button className="btn btn-ghost btn-sm" style={{width:"100%",marginTop:8}} onClick={() => { setMode(null); setJoinCode(""); window.history.pushState({},""," /"); }}>← Back</button>
         </div>
       )}
     </div>

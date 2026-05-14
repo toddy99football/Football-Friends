@@ -529,11 +529,10 @@ function LobbyScreen({ game, myName, isAdmin, onStartPicking, onRefresh }) {
         <div className="share-box" onClick={copyLink}>
           {copied ? "✓ Copied to clipboard!" : link}
         </div>
-        <div style={{textAlign:"center",fontSize:12,color:"var(--muted)"}}>
-          Game name/code: <strong style={{color:"var(--text)",fontFamily:"var(--font-head)",fontSize:18,letterSpacing:2}}>{game.id}</strong>
-        </div>
-        <div style={{textAlign:"center",fontSize:12,color:"var(--muted)",marginTop:6}}>
-          Friends can also join by entering <strong style={{color:"var(--text)"}}>{game.id}</strong> on the join screen
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:11,color:"var(--muted)",marginBottom:4,textTransform:"uppercase",letterSpacing:1,fontFamily:"var(--font-head)"}}>Game Code</div>
+          <div style={{fontFamily:"var(--font-head)",fontSize:32,fontWeight:900,color:"var(--red)",letterSpacing:4}}>{game.id}</div>
+          <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>Use this to join or rejoin the game</div>
         </div>
       </div>
 
@@ -942,7 +941,7 @@ export default function App() {
       if (data.game.status === "picking") { setScreen("picking"); if (data.game.match) loadTeamSheet(data.game.match); }
       else if (data.game.status === "results") setScreen("results");
       else setScreen("lobby");
-    } catch (e) { setError("Couldn't connect: " + (e.message || "unknown error") + ". Make sure the game name is correct."); }
+    } catch (e) { setError("Error: " + (e.message || "unknown") + ". Check the game name is correct."); }
   }
 
   async function handleMatchSelected() {
@@ -952,13 +951,13 @@ export default function App() {
     }
     const match = matches[selectedMatch];
     if (!match) { setError("Match not found."); return; }
-    const gameId = gameName.trim()
-      ? gameName.trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,10)
-      : generateGameId();
+    // Use custom game name if set, otherwise random ID
+    const cleanName = (gameName || "").trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,10);
+    const gameId = cleanName || generateGameId();
     const adminName = myName || "Admin";
     setError(null);
     try {
-      const data = await apiCall("/api/game", { action:"create", gameId, adminName, match, gameName: gameName.trim() });
+      const data = await apiCall("/api/game", { action:"create", gameId, adminName, match });
       if (!data) { setError("No response from server."); return; }
       if (data.error) { setError("Error: " + data.error); return; }
       if (!data.game) { setError("Game creation failed."); return; }

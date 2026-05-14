@@ -345,15 +345,22 @@ function HomeScreen({ onCreate, onJoin, error, gameName, setGameName }) {
     try {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("game");
-      if (code) { setJoinCode(code.toUpperCase()); setMode("join"); }
+      if (code) {
+        setJoinCode(code.toUpperCase());
+        setMode("join");
+      }
     } catch {}
   }, []);
 
+  // Separate state for rejoin code to avoid conflict with URL join code
+  const [rejoinCode, setRejoinCode] = useState("");
+
   async function handleJoin() {
-    if (!name.trim() || !joinCode.trim()) return;
+    const code = mode === "rejoin" ? rejoinCode.trim() : joinCode.trim();
+    if (!name.trim() || !code) return;
     setLoading(true);
     const isRejoin = mode === "rejoin";
-    await onJoin(name.trim(), joinCode.trim(), isRejoin);
+    await onJoin(name.trim(), code, isRejoin);
     setLoading(false);
   }
 
@@ -424,27 +431,35 @@ function HomeScreen({ onCreate, onJoin, error, gameName, setGameName }) {
             </div>
           </>
         )}
-        {(mode === "join" || mode === "rejoin") && !joinCode && (
+        {mode === "join" && !joinCode && (
           <>
-            <div className="section-label">{mode === "rejoin" ? "Your Game Name" : "Game Name or Code"}</div>
+            <div className="section-label">Game Name or Code</div>
             <input className="input-field"
-              placeholder={mode === "rejoin" ? "e.g. TODDSGANG" : "e.g. TODDSGANG or ABC12345"}
+              placeholder="e.g. TODDSGANG or ABC12345"
               value={joinCode}
               onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} />
-            {mode === "rejoin" && (
-              <div style={{fontSize:11,color:"var(--muted)",marginBottom:12,marginTop:-8}}>
-                Enter the game name you chose when you created it
-              </div>
-            )}
+          </>
+        )}
+        {mode === "rejoin" && (
+          <>
+            <div className="section-label">Your Game Name</div>
+            <input className="input-field"
+              placeholder="e.g. TODDSGANG"
+              value={rejoinCode}
+              onChange={e => setRejoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))}
+              autoComplete="off" />
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12,marginTop:-8}}>
+              Enter the game name you set when you created it
+            </div>
           </>
         )}
         <button className="btn btn-primary"
-          disabled={!name.trim() || loading || ((mode==="join"||mode==="rejoin") && !joinCode.trim())}
+          disabled={!name.trim() || loading || (mode==="join" && !joinCode.trim()) || (mode==="rejoin" && !rejoinCode.trim())}
           onClick={mode==="create" ? handleCreate : handleJoin}>
           {loading ? "Loading…" : mode==="create" ? "Next: Pick Match →" : mode==="rejoin" ? "Rejoin as Admin →" : "Join Game →"}
         </button>
         <button className="btn btn-ghost" style={{marginTop:8}}
-          onClick={() => { setMode(null); setJoinCode(""); setGameNameLocal(""); try { window.history.pushState({},"","/"); } catch {} }}>
+          onClick={() => { setMode(null); setJoinCode(""); setRejoinCode(""); setGameNameLocal(""); try { window.history.pushState({},"","/"); } catch {} }}>
           ← Back
         </button>
       </div>

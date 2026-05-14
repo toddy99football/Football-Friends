@@ -724,17 +724,24 @@ export default function App() {
   // Restore session on load
   useEffect(() => {
     async function init() {
+      // Check URL for game code first
+      const params = new URLSearchParams(window.location.search);
+      const urlGameId = params.get("game");
+
+      // Try to restore saved session
       try {
         const saved = localStorage.getItem("ff_session");
         if (saved) {
           const session = JSON.parse(saved);
-          if (session && session.gameId && session.myName) {
+          // Use URL game code if present, otherwise use saved one
+          const gameId = urlGameId || session.gameId;
+          if (gameId && session.myName) {
             try {
-              const data = await apiCall("/api/game", { action:"get", gameId:session.gameId });
+              const data = await apiCall("/api/game", { action:"get", gameId });
               if (data && data.game && Array.isArray(data.game.players)) {
                 setGame(data.game);
                 setMyName(session.myName);
-                setIsAdmin(session.isAdmin || false);
+                setIsAdmin(session.isAdmin && session.gameId === gameId);
                 if (data.game.winner || data.game.status === "results") setScreen("results");
                 else if (data.game.status === "picking") {
                   setScreen("picking");
@@ -745,10 +752,7 @@ export default function App() {
                 loadMatches();
                 return;
               }
-            } catch(e) {
-              // Game fetch failed - keep session but go home so they can rejoin
-              // Don't clear session - game might just be temporarily unavailable
-            }
+            } catch(e) { /* fetch failed, continue to home */ }
           }
         }
       } catch(e) { /* session parse failed */ }
@@ -786,44 +790,29 @@ export default function App() {
   async function loadMatches() {
     setLoadingMatches(true);
     setMatchesError(null);
-    const today = new Date().toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short", year:"numeric" });
-    try {
-      const data = await apiCall("/api/chat", {
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        tools: [{ type:"web_search_20250305", name:"web_search" }],
-        messages: [{ role:"user", content:`Search for upcoming Premier League fixtures from today (${today}) for the next 14 days. Return ONLY a raw JSON array, no markdown, no explanation. Format: [{"home":"Team A","away":"Team B","date":"Mon 11 May","time":"20:00"}]. Max 12 matches, 24hr UK time, order by date ascending.` }],
-      });
-      const text = (data?.content||[]).map(b => b.text||"").join("\n");
-      const m = text.replace(/```json|```/g,"").match(/\[[\s\S]*\]/);
-      if (!m) throw new Error("no json");
-      const parsed = JSON.parse(m[0]);
-      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("empty");
-      setMatches(parsed);
-    } catch {
-      setMatches([
-        { home:"Aston Villa", away:"Liverpool", date:"Thu 15 May", time:"20:00" },
-        { home:"Brentford", away:"Crystal Palace", date:"Sat 17 May", time:"12:30" },
-        { home:"Everton", away:"Sunderland", date:"Sat 17 May", time:"15:00" },
-        { home:"Leeds United", away:"Brighton", date:"Sat 17 May", time:"15:00" },
-        { home:"Manchester United", away:"Nottingham Forest", date:"Sat 17 May", time:"15:00" },
-        { home:"Newcastle United", away:"West Ham United", date:"Sat 17 May", time:"15:00" },
-        { home:"Wolves", away:"Fulham", date:"Sat 17 May", time:"15:00" },
-        { home:"Arsenal", away:"Burnley", date:"Sun 18 May", time:"16:00" },
-        { home:"AFC Bournemouth", away:"Manchester City", date:"Mon 19 May", time:"20:00" },
-        { home:"Chelsea", away:"Tottenham Hotspur", date:"Mon 19 May", time:"20:00" },
-        { home:"Brighton", away:"Manchester United", date:"Sun 24 May", time:"17:00" },
-        { home:"Burnley", away:"Wolves", date:"Sun 24 May", time:"17:00" },
-        { home:"Crystal Palace", away:"Arsenal", date:"Sun 24 May", time:"17:00" },
-        { home:"Fulham", away:"Newcastle United", date:"Sun 24 May", time:"17:00" },
-        { home:"Liverpool", away:"Brentford", date:"Sun 24 May", time:"17:00" },
-        { home:"Manchester City", away:"Aston Villa", date:"Sun 24 May", time:"17:00" },
-        { home:"Nottingham Forest", away:"Bournemouth", date:"Sun 24 May", time:"17:00" },
-        { home:"Sunderland", away:"Chelsea", date:"Sun 24 May", time:"17:00" },
-        { home:"Tottenham Hotspur", away:"Everton", date:"Sun 24 May", time:"17:00" },
-        { home:"West Ham United", away:"Leeds United", date:"Sun 24 May", time:"17:00" },      ]);
-      setMatchesError("Showing confirmed fixtures — live fetch unavailable.");
-    }
+    // Confirmed remaining PL fixtures 2025-26 season
+    setMatches([
+      { home:"Aston Villa", away:"Liverpool", date:"Thu 15 May", time:"20:00" },
+      { home:"Brentford", away:"Crystal Palace", date:"Sat 17 May", time:"12:30" },
+      { home:"Everton", away:"Sunderland", date:"Sat 17 May", time:"15:00" },
+      { home:"Leeds United", away:"Brighton", date:"Sat 17 May", time:"15:00" },
+      { home:"Manchester United", away:"Nottingham Forest", date:"Sat 17 May", time:"15:00" },
+      { home:"Newcastle United", away:"West Ham United", date:"Sat 17 May", time:"15:00" },
+      { home:"Wolves", away:"Fulham", date:"Sat 17 May", time:"15:00" },
+      { home:"Arsenal", away:"Burnley", date:"Sun 18 May", time:"16:00" },
+      { home:"AFC Bournemouth", away:"Manchester City", date:"Mon 19 May", time:"20:00" },
+      { home:"Chelsea", away:"Tottenham Hotspur", date:"Mon 19 May", time:"20:00" },
+      { home:"Brighton", away:"Manchester United", date:"Sun 24 May", time:"17:00" },
+      { home:"Burnley", away:"Wolves", date:"Sun 24 May", time:"17:00" },
+      { home:"Crystal Palace", away:"Arsenal", date:"Sun 24 May", time:"17:00" },
+      { home:"Fulham", away:"Newcastle United", date:"Sun 24 May", time:"17:00" },
+      { home:"Liverpool", away:"Brentford", date:"Sun 24 May", time:"17:00" },
+      { home:"Manchester City", away:"Aston Villa", date:"Sun 24 May", time:"17:00" },
+      { home:"Nottingham Forest", away:"Bournemouth", date:"Sun 24 May", time:"17:00" },
+      { home:"Sunderland", away:"Chelsea", date:"Sun 24 May", time:"17:00" },
+      { home:"Tottenham Hotspur", away:"Everton", date:"Sun 24 May", time:"17:00" },
+      { home:"West Ham United", away:"Leeds United", date:"Sun 24 May", time:"17:00" },
+    ]);
     setLoadingMatches(false);
   }
 
@@ -871,8 +860,14 @@ export default function App() {
 
   function leaveGame() {
     try { localStorage.removeItem("ff_session"); } catch {}
-    setGame(null); setMyName(""); setIsAdmin(false); setScreen("home"); setTeamSheet(null);
-    try { window.history.pushState({},"","/"); } catch {}
+    setGame(null);
+    setMyName("");
+    setIsAdmin(false);
+    setScreen("home");
+    setTeamSheet(null);
+    setSelectedMatch(null);
+    setError(null);
+    try { window.history.pushState({}, "", window.location.pathname); } catch {}
   }
 
   async function handleCreate(name) {

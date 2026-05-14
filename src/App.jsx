@@ -728,25 +728,30 @@ export default function App() {
         const saved = localStorage.getItem("ff_session");
         if (saved) {
           const session = JSON.parse(saved);
-          if (session?.gameId) {
-            const data = await apiCall("/api/game", { action:"get", gameId:session.gameId });
-            if (data?.game?.players) {
-              setGame(data.game);
-              setMyName(session.myName || "");
-              setIsAdmin(session.isAdmin || false);
-              if (data.game.winner || data.game.status === "results") setScreen("results");
-              else if (data.game.status === "picking") {
-                setScreen("picking");
-                if (data.game.match) loadTeamSheet(data.game.match);
-              } else {
-                setScreen("lobby");
+          if (session && session.gameId && session.myName) {
+            try {
+              const data = await apiCall("/api/game", { action:"get", gameId:session.gameId });
+              if (data && data.game && Array.isArray(data.game.players)) {
+                setGame(data.game);
+                setMyName(session.myName);
+                setIsAdmin(session.isAdmin || false);
+                if (data.game.winner || data.game.status === "results") setScreen("results");
+                else if (data.game.status === "picking") {
+                  setScreen("picking");
+                  if (data.game.match) loadTeamSheet(data.game.match);
+                } else {
+                  setScreen("lobby");
+                }
+                loadMatches();
+                return;
               }
-              loadMatches();
-              return;
+            } catch(e) {
+              // Game fetch failed - keep session but go home so they can rejoin
+              // Don't clear session - game might just be temporarily unavailable
             }
           }
         }
-      } catch { try { localStorage.removeItem("ff_session"); } catch {} }
+      } catch(e) { /* session parse failed */ }
       loadMatches();
     }
     init();
@@ -797,15 +802,26 @@ export default function App() {
       setMatches(parsed);
     } catch {
       setMatches([
+        { home:"Aston Villa", away:"Liverpool", date:"Thu 15 May", time:"20:00" },
+        { home:"Brentford", away:"Crystal Palace", date:"Sat 17 May", time:"12:30" },
+        { home:"Everton", away:"Sunderland", date:"Sat 17 May", time:"15:00" },
+        { home:"Leeds United", away:"Brighton", date:"Sat 17 May", time:"15:00" },
+        { home:"Manchester United", away:"Nottingham Forest", date:"Sat 17 May", time:"15:00" },
+        { home:"Newcastle United", away:"West Ham United", date:"Sat 17 May", time:"15:00" },
+        { home:"Wolves", away:"Fulham", date:"Sat 17 May", time:"15:00" },
         { home:"Arsenal", away:"Burnley", date:"Sun 18 May", time:"16:00" },
-        { home:"Brentford", away:"Crystal Palace", date:"Sun 18 May", time:"16:00" },
-        { home:"Chelsea", away:"Tottenham Hotspur", date:"Sun 18 May", time:"16:00" },
-        { home:"Everton", away:"Sunderland", date:"Sun 18 May", time:"16:00" },
-        { home:"Leeds United", away:"Brighton", date:"Sun 18 May", time:"16:00" },
-        { home:"Newcastle United", away:"West Ham United", date:"Sun 18 May", time:"16:00" },
-        { home:"Wolves", away:"Fulham", date:"Sun 18 May", time:"16:00" },
-        { home:"AFC Bournemouth", away:"Manchester City", date:"Tue 19 May", time:"20:00" },
-      ]);
+        { home:"AFC Bournemouth", away:"Manchester City", date:"Mon 19 May", time:"20:00" },
+        { home:"Chelsea", away:"Tottenham Hotspur", date:"Mon 19 May", time:"20:00" },
+        { home:"Brighton", away:"Manchester United", date:"Sun 24 May", time:"17:00" },
+        { home:"Burnley", away:"Wolves", date:"Sun 24 May", time:"17:00" },
+        { home:"Crystal Palace", away:"Arsenal", date:"Sun 24 May", time:"17:00" },
+        { home:"Fulham", away:"Newcastle United", date:"Sun 24 May", time:"17:00" },
+        { home:"Liverpool", away:"Brentford", date:"Sun 24 May", time:"17:00" },
+        { home:"Manchester City", away:"Aston Villa", date:"Sun 24 May", time:"17:00" },
+        { home:"Nottingham Forest", away:"Bournemouth", date:"Sun 24 May", time:"17:00" },
+        { home:"Sunderland", away:"Chelsea", date:"Sun 24 May", time:"17:00" },
+        { home:"Tottenham Hotspur", away:"Everton", date:"Sun 24 May", time:"17:00" },
+        { home:"West Ham United", away:"Leeds United", date:"Sun 24 May", time:"17:00" },      ]);
       setMatchesError("Showing confirmed fixtures — live fetch unavailable.");
     }
     setLoadingMatches(false);
@@ -816,24 +832,28 @@ export default function App() {
     setLoadingSheet(true);
     setTeamSheet(null);
     try {
-      const prompt = "Search for the expected starting lineup for " + match.home + " vs " + match.away + " Premier League 2025-26. Return ONLY a JSON array, no markdown, no explanation: [{team,colour,players:[{number,name,pos}]},{team,colour,players:[]}]. 11 starters + 5 subs. pos must be GK DEF MID or FWD.";
+      const home = match.home;
+      const away = match.away;
+      const prompt = "Give me the expected starting XI and substitutes for " + home + " and " + away + " in their upcoming Premier League match. I need real player names. Your response must start with [ and end with ] and contain nothing else. Use this exact format: [{"team":"" + home + "","colour":"#e63946","players":[{"number":1,"name":"FirstName LastName","pos":"GK"},{"number":2,"name":"FirstName LastName","pos":"DEF"}]},{"team":"" + away + "","colour":"#4361ee","players":[{"number":1,"name":"FirstName LastName","pos":"GK"}]}]. pos must be GK, DEF, MID, or FWD. Include 11 starters and 5 subs per team. Real player names only.";
       const data = await apiCall("/api/chat", {
         model: "claude-sonnet-4-20250514",
         max_tokens: 2000,
-        tools: [{ type:"web_search_20250305", name:"web_search" }],
-        messages: [{ role:"user", content: prompt }],
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages: [{ role: "user", content: prompt }],
       });
-      const text = (data && data.content ? data.content : []).map(function(b){ return b.text || ""; }).join("\n");
-      const cleaned = text.replace(/```json/g,"").replace(/```/g,"").trim();
-      const arrStart = cleaned.indexOf("[");
-      const arrEnd = cleaned.lastIndexOf("]");
-      if (arrStart < 0 || arrEnd < 0) throw new Error("no json array");
-      const result = JSON.parse(cleaned.slice(arrStart, arrEnd + 1));
-      if (!Array.isArray(result) || result.length < 2) throw new Error("bad result");
-      if (!Array.isArray(result[0].players) || result[0].players.length === 0) throw new Error("no players");
+      const blocks = (data && data.content) ? data.content : [];
+      const text = blocks.map(function(b) { return b.text || ""; }).join(" ");
+      const s = text.indexOf("[");
+      const e = text.lastIndexOf("]");
+      if (s < 0 || e < 0 || e <= s) throw new Error("no array found");
+      const result = JSON.parse(text.slice(s, e + 1));
+      if (!Array.isArray(result) || result.length < 2) throw new Error("bad array");
+      const homePlayers = result[0] && Array.isArray(result[0].players) ? result[0].players : [];
+      const awayPlayers = result[1] && Array.isArray(result[1].players) ? result[1].players : [];
+      if (homePlayers.length === 0 || awayPlayers.length === 0) throw new Error("empty players");
       setTeamSheet({ home: result[0], away: result[1] });
       setSheetTab("home");
-    } catch(e) {
+    } catch(err) {
       setTeamSheet({
         home: { team: match.home, colour: "#e63946", players: fallbackPlayers(match.home, "home") },
         away: { team: match.away, colour: "#4361ee", players: fallbackPlayers(match.away, "away") },
@@ -873,24 +893,39 @@ export default function App() {
   }
 
   async function handleMatchSelected() {
-    if (selectedMatch === null || !matches[selectedMatch]) {
+    if (selectedMatch === null || selectedMatch === undefined) {
       setError("Please select a match first.");
       return;
     }
     const match = matches[selectedMatch];
+    if (!match) {
+      setError("Match not found. Please try again.");
+      return;
+    }
     const gameId = generateGameId();
+    const adminName = myName || "Admin";
     setError(null);
     try {
-      const data = await apiCall("/api/game", { action:"create", gameId, adminName:myName, match });
-      if (!data || !data.game) {
-        setError("Failed to create game — server error. Try again.");
+      const payload = { action:"create", gameId, adminName, match };
+      const data = await apiCall("/api/game", payload);
+      if (!data) {
+        setError("No response from server. Check your connection.");
         return;
       }
+      if (data.error) {
+        setError("Server error: " + data.error);
+        return;
+      }
+      if (!data.game) {
+        setError("Game creation failed. Try again.");
+        return;
+      }
+      setMyName(adminName);
       setGame(data.game);
       setScreen("lobby");
       try { window.history.pushState({}, "", "?game=" + gameId); } catch {}
     } catch(e) {
-      setError("Failed to create game: " + (e.message || "unknown error"));
+      setError("Connection error: " + (e.message || "unknown error") + ". Check Vercel logs.");
     }
   }
 

@@ -834,7 +834,7 @@ export default function App() {
     try {
       const home = match.home;
       const away = match.away;
-      const prompt = "Give me the expected starting XI and substitutes for " + home + " and " + away + " in their upcoming Premier League match. I need real player names. Your response must start with [ and end with ] and contain nothing else. Use this exact format: [{"team":"" + home + "","colour":"#e63946","players":[{"number":1,"name":"FirstName LastName","pos":"GK"},{"number":2,"name":"FirstName LastName","pos":"DEF"}]},{"team":"" + away + "","colour":"#4361ee","players":[{"number":1,"name":"FirstName LastName","pos":"GK"}]}]. pos must be GK, DEF, MID, or FWD. Include 11 starters and 5 subs per team. Real player names only.";
+      const prompt = `Search for the expected starting XI for ${home} vs ${away} in the Premier League 2025-26. Return ONLY a JSON array with no markdown or explanation. Format: [{"team":"${home}","colour":"#e63946","players":[{"number":1,"name":"Player Name","pos":"GK"}]},{"team":"${away}","colour":"#4361ee","players":[{"number":1,"name":"Player Name","pos":"GK"}]}]. Include 11 starters and 5 subs per team. pos must be GK DEF MID or FWD only. Use real player names.`;
       const data = await apiCall("/api/chat", {
         model: "claude-sonnet-4-20250514",
         max_tokens: 2000,

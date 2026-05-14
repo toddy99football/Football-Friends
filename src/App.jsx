@@ -195,20 +195,21 @@ export default function App() {
   useEffect(() => {
     async function restore() {
       try {
-        const s = JSON.parse(localStorage.getItem("ff") || "null");
-        if (s && s.gameId && s.myName) {
-          const d = await api({ action:"get", gameId:s.gameId });
-          if (d.game && d.game.players) {
-            setGame(d.game);
-            setMyName(s.myName);
-            setIsAdmin(s.isAdmin || false);
-            if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
-            else if (d.game.status === "results") setScreen("results");
-            else setScreen("lobby");
-            return;
-          }
-        }
-      } catch {}
+        const raw = localStorage.getItem("ff");
+        if (!raw) return;
+        const s = JSON.parse(raw);
+        if (!s || !s.gameId || !s.myName) return;
+        const d = await api({ action:"get", gameId:s.gameId });
+        if (!d || !d.game || !Array.isArray(d.game.players)) return;
+        setGame(d.game);
+        setMyName(s.myName);
+        setIsAdmin(s.isAdmin || false);
+        if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
+        else if (d.game.status === "results") setScreen("results");
+        else setScreen("lobby");
+      } catch(e) {
+        try { localStorage.removeItem("ff"); } catch {}
+      }
     }
     restore();
   }, []);
@@ -226,7 +227,7 @@ export default function App() {
     const t = setInterval(async () => {
       try {
         const d = await api({ action:"get", gameId:game.id });
-        if (d.game && d.game.players) {
+        if (d && d.game && Array.isArray(d.game.players)) {
           setGame(d.game);
           if (d.game.winner) setScreen("results");
           else if (d.game.status === "picking" && screen === "lobby") { setScreen("picking"); if (!teamSheet) loadSheet(d.game.match); }

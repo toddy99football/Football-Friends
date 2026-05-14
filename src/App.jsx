@@ -352,7 +352,8 @@ function HomeScreen({ onCreate, onJoin, error, gameName, setGameName }) {
   async function handleJoin() {
     if (!name.trim() || !joinCode.trim()) return;
     setLoading(true);
-    await onJoin(name.trim(), joinCode.trim());
+    const isRejoin = mode === "rejoin";
+    await onJoin(name.trim(), joinCode.trim(), isRejoin);
     setLoading(false);
   }
 
@@ -926,7 +927,7 @@ export default function App() {
       if (data.game.status === "picking") { setScreen("picking"); if (data.game.match) loadTeamSheet(data.game.match); }
       else if (data.game.status === "results") setScreen("results");
       else setScreen("lobby");
-    } catch (e) { setError("Couldn't connect. Please try again."); }
+    } catch (e) { setError("Couldn't connect: " + (e.message || "unknown error") + ". Make sure the game name is correct."); }
   }
 
   async function handleMatchSelected() {

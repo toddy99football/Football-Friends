@@ -335,7 +335,7 @@ function AvailBadge({ match }) {
 }
 
 // ─── HOME SCREEN ──────────────────────────────────────────────────────────────
-function HomeScreen({ onCreate, onJoin, error }) {
+function HomeScreen({ onCreate, onJoin, error, gameName, setGameName }) {
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [mode, setMode] = useState(null);
@@ -356,10 +356,12 @@ function HomeScreen({ onCreate, onJoin, error }) {
     setLoading(false);
   }
 
+  const [gameNameLocal, setGameNameLocal] = useState("");
+
   async function handleCreate() {
     if (!name.trim()) return;
     setLoading(true);
-    await onCreate(name.trim());
+    await onCreate(name.trim(), gameNameLocal.trim());
     setLoading(false);
   }
 
@@ -385,6 +387,14 @@ function HomeScreen({ onCreate, onJoin, error }) {
             <div className="home-option-sub">Enter a code or tap your WhatsApp link</div>
           </div>
         </div>
+        <div className="home-option" onClick={() => setMode("rejoin")}
+          style={{borderColor:"#c9a22740",background:"#c9a22710"}}>
+          <div className="home-option-icon">🔑</div>
+          <div>
+            <div className="home-option-title" style={{color:"#c9a227"}}>Rejoin My Game</div>
+            <div className="home-option-sub">Go back in as admin with your game name</div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -398,22 +408,42 @@ function HomeScreen({ onCreate, onJoin, error }) {
         </div>
         <div className="section-label">Your Name</div>
         <input className="input-field" placeholder="Enter your name…" value={name}
-          onChange={e => setName(e.target.value)}
-          onKeyDown={e => e.key==="Enter" && (mode==="create" ? handleCreate() : handleJoin())}
-          autoFocus />
-        {mode === "join" && !joinCode && (
+          onChange={e => setName(e.target.value)} autoFocus />
+        {mode === "create" && (
           <>
-            <div className="section-label">Game Code</div>
-            <input className="input-field" placeholder="e.g. ABC12345" value={joinCode}
-              onChange={e => setJoinCode(e.target.value.toUpperCase())} />
+            <div className="section-label">
+              Game Name <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11}}>(optional — so you can rejoin easily)</span>
+            </div>
+            <input className="input-field" placeholder="e.g. TODDSGANG or FRIDAY5ASIDE"
+              value={gameNameLocal}
+              onChange={e => setGameNameLocal(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))}
+              maxLength={10} />
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12,marginTop:-8}}>
+              Letters and numbers only, max 10 characters
+            </div>
           </>
         )}
-        <button className="btn btn-primary" disabled={!name.trim() || loading || (mode==="join" && !joinCode.trim())}
+        {(mode === "join" || mode === "rejoin") && !joinCode && (
+          <>
+            <div className="section-label">{mode === "rejoin" ? "Your Game Name" : "Game Name or Code"}</div>
+            <input className="input-field"
+              placeholder={mode === "rejoin" ? "e.g. TODDSGANG" : "e.g. TODDSGANG or ABC12345"}
+              value={joinCode}
+              onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} />
+            {mode === "rejoin" && (
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:12,marginTop:-8}}>
+                Enter the game name you chose when you created it
+              </div>
+            )}
+          </>
+        )}
+        <button className="btn btn-primary"
+          disabled={!name.trim() || loading || ((mode==="join"||mode==="rejoin") && !joinCode.trim())}
           onClick={mode==="create" ? handleCreate : handleJoin}>
-          {loading ? "Loading…" : mode==="create" ? "Create Game →" : "Join Game →"}
+          {loading ? "Loading…" : mode==="create" ? "Next: Pick Match →" : mode==="rejoin" ? "Rejoin as Admin →" : "Join Game →"}
         </button>
         <button className="btn btn-ghost" style={{marginTop:8}}
-          onClick={() => { setMode(null); setJoinCode(""); try { window.history.pushState({},"","/"); } catch {} }}>
+          onClick={() => { setMode(null); setJoinCode(""); setGameNameLocal(""); try { window.history.pushState({},"","/"); } catch {} }}>
           ← Back
         </button>
       </div>
@@ -484,7 +514,10 @@ function LobbyScreen({ game, myName, isAdmin, onStartPicking, onRefresh }) {
           {copied ? "✓ Copied to clipboard!" : link}
         </div>
         <div style={{textAlign:"center",fontSize:12,color:"var(--muted)"}}>
-          Game code: <strong style={{color:"var(--text)",fontFamily:"var(--font-head)",fontSize:16,letterSpacing:2}}>{game.id}</strong>
+          Game name/code: <strong style={{color:"var(--text)",fontFamily:"var(--font-head)",fontSize:18,letterSpacing:2}}>{game.id}</strong>
+        </div>
+        <div style={{textAlign:"center",fontSize:12,color:"var(--muted)",marginTop:6}}>
+          Friends can also join by entering <strong style={{color:"var(--text)"}}>{game.id}</strong> on the join screen
         </div>
       </div>
 
@@ -709,6 +742,7 @@ function ResultsScreen({ game, myName, isAdmin, onDeclareWinner }) {
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("home");
+  const [gameName, setGameName] = useState("");
   const [myName, setMyName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [game, setGame] = useState(null);
@@ -741,6 +775,7 @@ export default function App() {
               if (data && data.game && Array.isArray(data.game.players)) {
                 setGame(data.game);
                 setMyName(session.myName);
+                setGameName(session.gameName || "");
                 setIsAdmin(session.isAdmin && session.gameId === gameId);
                 if (data.game.winner || data.game.status === "results") setScreen("results");
                 else if (data.game.status === "picking") {
@@ -764,7 +799,7 @@ export default function App() {
   // Save session
   useEffect(() => {
     if (game?.id && myName) {
-      try { localStorage.setItem("ff_session", JSON.stringify({ gameId:game.id, myName, isAdmin })); } catch {}
+      try { localStorage.setItem("ff_session", JSON.stringify({ gameId:game.id, myName, isAdmin, gameName })); } catch {}
     }
   }, [game, myName, isAdmin]);
 
@@ -790,18 +825,16 @@ export default function App() {
   async function loadMatches() {
     setLoadingMatches(true);
     setMatchesError(null);
-    // Confirmed remaining PL fixtures 2025-26 season
     setMatches([
-      { home:"Aston Villa", away:"Liverpool", date:"Thu 15 May", time:"20:00" },
+      { home:"Aston Villa", away:"Liverpool", date:"Fri 15 May", time:"20:00" },
       { home:"Brentford", away:"Crystal Palace", date:"Sat 17 May", time:"12:30" },
       { home:"Everton", away:"Sunderland", date:"Sat 17 May", time:"15:00" },
       { home:"Leeds United", away:"Brighton", date:"Sat 17 May", time:"15:00" },
       { home:"Manchester United", away:"Nottingham Forest", date:"Sat 17 May", time:"15:00" },
       { home:"Newcastle United", away:"West Ham United", date:"Sat 17 May", time:"15:00" },
-      { home:"Wolves", away:"Fulham", date:"Sat 17 May", time:"15:00" },
       { home:"Arsenal", away:"Burnley", date:"Sun 18 May", time:"16:00" },
-      { home:"AFC Bournemouth", away:"Manchester City", date:"Mon 19 May", time:"20:00" },
-      { home:"Chelsea", away:"Tottenham Hotspur", date:"Mon 19 May", time:"20:00" },
+      { home:"AFC Bournemouth", away:"Manchester City", date:"Tue 20 May", time:"20:00" },
+      { home:"Chelsea", away:"Tottenham Hotspur", date:"Tue 20 May", time:"20:00" },
       { home:"Brighton", away:"Manchester United", date:"Sun 24 May", time:"17:00" },
       { home:"Burnley", away:"Wolves", date:"Sun 24 May", time:"17:00" },
       { home:"Crystal Palace", away:"Arsenal", date:"Sun 24 May", time:"17:00" },
@@ -866,21 +899,30 @@ export default function App() {
     setScreen("home");
     setTeamSheet(null);
     setSelectedMatch(null);
+    setGameName("");
     setError(null);
     try { window.history.pushState({}, "", window.location.pathname); } catch {}
   }
 
-  async function handleCreate(name) {
-    setMyName(name); setIsAdmin(true); setError(null); setScreen("pickMatch");
+  async function handleCreate(name, gName) {
+    setMyName(name);
+    setGameName(gName || "");
+    setIsAdmin(true);
+    setError(null);
+    setScreen("pickMatch");
   }
 
-  async function handleJoin(name, code) {
+  async function handleJoin(name, code, forceAdmin) {
     setError(null);
     try {
       const data = await apiCall("/api/game", { action:"join", gameId:code, playerName:name });
       if (data?.error) { setError(data.error); return; }
       if (!data?.game) { setError("Game not found. Check the code and try again."); return; }
-      setGame(data.game); setMyName(name); setIsAdmin(false);
+      // Check if this person is the original admin rejoining
+      const isAdminRejoining = forceAdmin || data.game.adminName === name;
+      setGame(data.game);
+      setMyName(name);
+      setIsAdmin(isAdminRejoining);
       if (data.game.status === "picking") { setScreen("picking"); if (data.game.match) loadTeamSheet(data.game.match); }
       else if (data.game.status === "results") setScreen("results");
       else setScreen("lobby");
@@ -893,34 +935,23 @@ export default function App() {
       return;
     }
     const match = matches[selectedMatch];
-    if (!match) {
-      setError("Match not found. Please try again.");
-      return;
-    }
-    const gameId = generateGameId();
+    if (!match) { setError("Match not found."); return; }
+    const gameId = gameName.trim()
+      ? gameName.trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,10)
+      : generateGameId();
     const adminName = myName || "Admin";
     setError(null);
     try {
-      const payload = { action:"create", gameId, adminName, match };
-      const data = await apiCall("/api/game", payload);
-      if (!data) {
-        setError("No response from server. Check your connection.");
-        return;
-      }
-      if (data.error) {
-        setError("Server error: " + data.error);
-        return;
-      }
-      if (!data.game) {
-        setError("Game creation failed. Try again.");
-        return;
-      }
+      const data = await apiCall("/api/game", { action:"create", gameId, adminName, match, gameName: gameName.trim() });
+      if (!data) { setError("No response from server."); return; }
+      if (data.error) { setError("Error: " + data.error); return; }
+      if (!data.game) { setError("Game creation failed."); return; }
       setMyName(adminName);
       setGame(data.game);
       setScreen("lobby");
       try { window.history.pushState({}, "", "?game=" + gameId); } catch {}
     } catch(e) {
-      setError("Connection error: " + (e.message || "unknown error") + ". Check Vercel logs.");
+      setError("Connection error: " + (e.message || "unknown"));
     }
   }
 
@@ -970,7 +1001,7 @@ export default function App() {
         </div>
       )}
 
-      {screen === "home" && <HomeScreen onCreate={handleCreate} onJoin={handleJoin} error={null} />}
+      {screen === "home" && <HomeScreen onCreate={handleCreate} onJoin={handleJoin} error={null} gameName={gameName} setGameName={setGameName} />}
       {screen === "pickMatch" && (
         <PickMatchScreen matches={matches} loadingMatches={loadingMatches}
           selectedMatch={selectedMatch} setSelectedMatch={setSelectedMatch}

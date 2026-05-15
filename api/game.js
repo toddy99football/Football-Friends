@@ -7,23 +7,17 @@ async function redisGet(key) {
   });
   const data = await res.json();
   if (!data.result) return null;
-  // Parse once - value was stored as JSON string
-  var result = data.result;
-  try { result = JSON.parse(result); } catch(e) {}
-  // If still a string (was double-stringified), parse again
-  if (typeof result === 'string') {
-    try { result = JSON.parse(result); } catch(e) {}
-  }
-  return result;
+  var val = data.result;
+  try { val = JSON.parse(val); } catch(e) {}
+  if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) {} }
+  return val;
 }
 
 async function redisSet(key, value) {
-  // Store as single JSON string
-  var body = JSON.stringify(JSON.stringify(value));
   await fetch(REDIS_URL + '/set/' + encodeURIComponent(key), {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
-    body: body,
+    body: JSON.stringify(JSON.stringify(value)),
   });
 }
 
@@ -48,8 +42,17 @@ module.exports = async function handler(req, res) {
           winner: null,
           createdAt: Date.now(),
         };
+        // Save game and also set it as the "current" game
         await redisSet('game:' + gameId, game);
+        await redisSet('current', gameId);
         return res.json({ game: game });
+      }
+
+      case 'getCurrent': {
+        const currentId = await redisGet('current');
+        if (!currentId) return res.json({ game: null });
+        const game = await redisGet('game:' + currentId);
+        return res.json({ game: game || null });
       }
 
       case 'get': {
@@ -67,7 +70,7 @@ module.exports = async function handler(req, res) {
           if (game.players[i].name === playerName) { exists = true; break; }
         }
         if (!exists) game.players.push({ name: playerName, pick: null });
-        await redisSet('game:' + gameId, game);
+        await redisSet('game:' + game.id, game);
         return res.json({ game: game });
       }
 
@@ -75,7 +78,7 @@ module.exports = async function handler(req, res) {
         const game = await redisGet('game:' + gameId);
         if (!game) return res.status(404).json({ error: 'Game not found' });
         game.status = 'picking';
-        await redisSet('game:' + gameId, game);
+        await redisSet('game:' + game.id, game);
         return res.json({ game: game });
       }
 
@@ -89,14 +92,14 @@ module.exports = async function handler(req, res) {
           if (game.players[i].pick && game.players[i].pick.name === pick.name) taken = true;
         }
         if (!player) return res.json({ error: 'Player not in game' });
-        if (taken) return res.json({ error: 'Player already picked' });
+        if (taken) return res.json({ error: 'Player already picked by someone else' });
         player.pick = pick;
         var allPicked = true;
         for (var i = 0; i < game.players.length; i++) {
           if (!game.players[i].pick) { allPicked = false; break; }
         }
         if (allPicked) game.status = 'results';
-        await redisSet('game:' + gameId, game);
+        await redisSet('game:' + game.id, game);
         return res.json({ game: game });
       }
 
@@ -110,7 +113,7 @@ module.exports = async function handler(req, res) {
         if (!winner) return res.json({ error: 'Player not found' });
         game.winner = winner;
         game.status = 'results';
-        await redisSet('game:' + gameId, game);
+        await redisSet('game:' + game.id, game);
         return res.json({ game: game });
       }
 

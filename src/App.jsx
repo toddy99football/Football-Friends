@@ -181,7 +181,6 @@ export default function App() {
   const [err, setErr] = useState("");
   const [modal, setModal] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
 
   // On load: always show home screen, but fetch current game for display
   useEffect(() => {
@@ -379,7 +378,7 @@ export default function App() {
                     ⚽ {isPicking ? "Rejoin & Pick →" : "Join Game →"}
                   </button>
                 )}
-                <button className="btn btn-g" style={{fontSize:16}} onClick={()=>setShowCreate(true)}>
+                <button className="btn btn-g" style={{fontSize:16}} onClick={()=>setScreen("create")}>
                   🏆 Create a New Game
                 </button>
                 {currentGame?.status === "results" && (
@@ -442,7 +441,7 @@ export default function App() {
   }
 
   // ── CREATE GAME FORM ────────────────────────────────────────────────
-  function CreateGameForm({ onDone }) {
+  function CreateGameForm() {
     const [adminName, setAdminName] = useState("");
     const [sel, setSel] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -465,7 +464,6 @@ export default function App() {
         setMyName(adminName.trim());
         setIsAdmin(true);
         setCurrentGame(d.game);
-        // Clear old session
         try { localStorage.removeItem("ff"); } catch {}
         setScreen("lobby");
       } catch(e) { setErr(e.message || "Error creating game"); }
@@ -486,7 +484,7 @@ export default function App() {
             <button className="btn btn-r" disabled={!adminName.trim()} onClick={()=>setStep(2)}>
               Next: Pick Match →
             </button>
-            <button className="btn btn-g" onClick={onDone}>← Cancel</button>
+            <button className="btn btn-g" onClick={()=>setScreen("home")}>← Cancel</button>
           </>
         )}
 
@@ -755,8 +753,8 @@ export default function App() {
         </div>
       )}
 
-      {screen==="home" && !showCreate && <HomeScreen/>}
-      {screen==="home" && showCreate && <CreateGameForm onDone={() => setShowCreate(false)} />}
+      {screen==="home" && <HomeScreen/>}
+      {screen==="create" && <CreateGameForm/>}
       {screen==="lobby" && game && <LobbyScreen/>}
       {screen==="picking" && game && <PickingScreen/>}
       {screen==="results" && game && <ResultsScreen/>}

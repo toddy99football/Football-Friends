@@ -360,7 +360,7 @@ export default function App() {
 
           {mode === "join" && (
             <>
-              {!new URLSearchParams(window.location.search).get("game") && (
+              {!code && (
                 <>
                   <div className="lbl">Game Code</div>
                   <input className="inp" placeholder="e.g. TODDSGANG" value={code}

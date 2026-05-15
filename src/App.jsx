@@ -272,22 +272,23 @@ export default function App() {
   function HomeScreen() {
     const [mode, setMode] = useState(null);
     const [name, setName] = useState("");
-    const [code, setCode] = useState("");
+    const [joinCode, setJoinCode] = useState("");   // for joining
+    const [gameName, setGameName] = useState("");   // for creating
+    const [rejoinCode, setRejoinCode] = useState(""); // for rejoining
     const [busy, setBusy] = useState(false);
 
-    // Auto-detect URL game code - only for join, not rejoin
+    // Auto-detect URL game code - only sets join code
     useEffect(() => {
       const p = new URLSearchParams(window.location.search).get("game");
-      if (p) { setCode(p.toUpperCase()); setMode("join"); }
+      if (p) { setJoinCode(p.toUpperCase()); setMode("join"); }
     }, []);
 
     async function doCreate() {
-      if (!name.trim() || !code.trim()) return;
+      if (!name.trim() || !gameName.trim()) return;
       setBusy(true); setErr("");
-      const gameId = code.trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12);
+      const gameId = gameName.trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12);
       if (!gameId) { setErr("Please enter a game name"); setBusy(false); return; }
       try {
-        // Pick match screen
         setMyName(name.trim());
         setIsAdmin(true);
         sessionStorage.setItem("pendingGameId", gameId);
@@ -297,6 +298,7 @@ export default function App() {
     }
 
     async function doJoin(asAdmin) {
+      const code = asAdmin ? rejoinCode : joinCode;
       if (!name.trim() || !code.trim()) return;
       setBusy(true); setErr("");
       try {
@@ -349,10 +351,10 @@ export default function App() {
           {mode === "create" && (
             <>
               <div className="lbl">Game Name <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11}}>(letters & numbers, e.g. TODDSGANG)</span></div>
-              <input className="inp" placeholder="e.g. TODDSGANG" value={code}
-                onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} maxLength={12} />
+              <input className="inp" placeholder="e.g. TODDSGANG" value={gameName}
+                onChange={e=>setGameName(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} maxLength={12} autoComplete="off" />
               <div style={{fontSize:11,color:"var(--muted)",marginBottom:10,marginTop:-6}}>This is the code your friends use to join — pick something memorable!</div>
-              <button className="btn btn-r" disabled={!name.trim()||!code.trim()||busy} onClick={doCreate}>
+              <button className="btn btn-r" disabled={!name.trim()||!gameName.trim()||busy} onClick={doCreate}>
                 {busy ? "Creating…" : "Next: Pick Match →"}
               </button>
             </>
@@ -360,15 +362,15 @@ export default function App() {
 
           {mode === "join" && (
             <>
-              {!code && (
+              {!joinCode && (
                 <>
                   <div className="lbl">Game Code</div>
-                  <input className="inp" placeholder="e.g. TODDSGANG" value={code}
-                    onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} />
+                  <input className="inp" placeholder="e.g. TODDSGANG" value={joinCode}
+                    onChange={e=>setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} autoComplete="off" />
                 </>
               )}
-              {code && <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Joining: <strong style={{color:"var(--text)"}}>{code}</strong></div>}
-              <button className="btn btn-r" disabled={!name.trim()||!code.trim()||busy} onClick={() => doJoin(false)}>
+              {joinCode && <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Joining: <strong style={{color:"var(--text)"}}>{joinCode}</strong></div>}
+              <button className="btn btn-r" disabled={!name.trim()||!joinCode.trim()||busy} onClick={() => doJoin(false)}>
                 {busy ? "Joining…" : "Join Game →"}
               </button>
             </>
@@ -377,16 +379,16 @@ export default function App() {
           {mode === "rejoin" && (
             <>
               <div className="lbl">Game Name</div>
-              <input className="inp" placeholder="e.g. TODDSGANG" value={code}
-                onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} />
+              <input className="inp" placeholder="e.g. TODDSGANG" value={rejoinCode}
+                onChange={e=>setRejoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} autoComplete="off" />
               <div style={{fontSize:11,color:"var(--muted)",marginBottom:10,marginTop:-6}}>Enter the game name you chose when you created it</div>
-              <button className="btn btn-gold" disabled={!name.trim()||!code.trim()||busy} onClick={() => doJoin(true)}>
+              <button className="btn btn-gold" disabled={!name.trim()||!rejoinCode.trim()||busy} onClick={() => doJoin(true)}>
                 {busy ? "Rejoining…" : "🔑 Rejoin as Admin →"}
               </button>
             </>
           )}
 
-          <button className="btn btn-g" onClick={() => { setMode(null); setCode(""); setErr(""); try{window.history.pushState({},"","/")}catch{} }}>← Back</button>
+          <button className="btn btn-g" onClick={() => { setMode(null); setJoinCode(""); setGameName(""); setRejoinCode(""); setErr(""); try{window.history.pushState({},"","/")}catch{} }}>← Back</button>
         </div>
       </div>
     );

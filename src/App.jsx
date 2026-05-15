@@ -301,14 +301,16 @@ export default function App() {
       setBusy(true); setErr("");
       try {
         const d = await api({ action:"join", gameId:code.trim().toUpperCase(), playerName:name.trim() });
+        if (!d) { setErr("No response from server"); setBusy(false); return; }
         if (d.error) { setErr(d.error); setBusy(false); return; }
+        if (!d.game || !Array.isArray(d.game.players)) { setErr("Invalid game data received"); setBusy(false); return; }
         setGame(d.game);
         setMyName(name.trim());
         setIsAdmin(asAdmin || d.game.adminName === name.trim());
         if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
         else if (d.game.status === "results") setScreen("results");
         else setScreen("lobby");
-      } catch(e) { setErr(e.message); }
+      } catch(e) { setErr(e.message || "Connection error"); }
       setBusy(false);
     }
 

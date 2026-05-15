@@ -7,14 +7,23 @@ async function redisGet(key) {
   });
   const data = await res.json();
   if (!data.result) return null;
-  return JSON.parse(data.result);
+  // Parse once - value was stored as JSON string
+  var result = data.result;
+  try { result = JSON.parse(result); } catch(e) {}
+  // If still a string (was double-stringified), parse again
+  if (typeof result === 'string') {
+    try { result = JSON.parse(result); } catch(e) {}
+  }
+  return result;
 }
 
 async function redisSet(key, value) {
+  // Store as single JSON string
+  var body = JSON.stringify(JSON.stringify(value));
   await fetch(REDIS_URL + '/set/' + encodeURIComponent(key), {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
-    body: JSON.stringify(JSON.stringify(value)),
+    body: body,
   });
 }
 

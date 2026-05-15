@@ -302,6 +302,46 @@ export default function App() {
     }).catch(()=>{});
   }
 
+  function ResultsRejoinCard({ game }) {
+    const [rejoinName, setRejoinName] = useState("");
+    const [busy, setBusy] = useState(false);
+
+    async function rejoin() {
+      if (!rejoinName.trim()) return;
+      setBusy(true);
+      try {
+        const d = await api({action:"join", gameId:game.id, playerName:rejoinName.trim()});
+        if (!d || !d.game || !Array.isArray(d.game.players)) { setBusy(false); return; }
+        setTeamSheet(null); setModal(null);
+        setGame(d.game);
+        setMyName(rejoinName.trim());
+        setIsAdmin(d.game.adminName === rejoinName.trim());
+        setScreen("results");
+      } catch {}
+      setBusy(false);
+    }
+
+    return (
+      <div className="card hi" style={{marginTop:16}}>
+        <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
+          {game.winner ? "🏆 We Have a Winner!" : "Game Finished"}
+        </div>
+        {game.winner && (
+          <div style={{textAlign:"center",marginBottom:14}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:32,fontWeight:900,color:"var(--amber)"}}>{game.winner.name}</div>
+            <div style={{fontSize:14,color:"var(--muted)",marginTop:4}}>picked {game.winner.pick?.name}</div>
+          </div>
+        )}
+        <input className="inp" placeholder="Enter your name to see full results…"
+          value={rejoinName} onChange={e=>setRejoinName(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&rejoinName.trim()&&rejoin()} />
+        <button className="btn btn-r" disabled={!rejoinName.trim()||busy} onClick={rejoin}>
+          {busy ? "Loading…" : "See Full Results →"}
+        </button>
+      </div>
+    );
+  }
+
   // ── HOME SCREEN ─────────────────────────────────────────────────────
   function HomeScreen() {
     const [name, setName] = useState("");
@@ -315,6 +355,10 @@ export default function App() {
         const d = await api({action:"join", gameId:currentGame.id, playerName:name.trim()});
         if (!d || !d.game || !Array.isArray(d.game.players)) { setErr("Failed to join."); setBusy(false); return; }
         if (d.error) { setErr(d.error); setBusy(false); return; }
+        // Clear old game state
+        setTeamSheet(null);
+        setSheetTab("home");
+        setModal(null);
         setGame(d.game);
         setMyName(name.trim());
         setIsAdmin(d.game.adminName === name.trim());
@@ -325,7 +369,7 @@ export default function App() {
       setBusy(false);
     }
 
-    if (showCreate) return <CreateGameForm onDone={() => setShowCreate(false)} />;
+    if (showCreate) return <CreateGameForm onDone={() => { setShowCreate(false); setName(""); }} />;
 
     const hasGame = currentGame && Array.isArray(currentGame.players);
     const isPicking = hasGame && currentGame.status === "picking";
@@ -413,26 +457,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Results game - show winner or rejoin */}
-        {currentGame && currentGame.status === "results" && (
-          <div className="card hi" style={{marginTop:16}}>
-            <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
-              {currentGame.winner ? "🏆 We Have a Winner!" : "Game Finished"}
-            </div>
-            {currentGame.winner && (
-              <div style={{textAlign:"center",marginBottom:14}}>
-                <div style={{fontFamily:"var(--fh)",fontSize:32,fontWeight:900,color:"var(--amber)"}}>{currentGame.winner.name}</div>
-                <div style={{fontSize:14,color:"var(--muted)",marginTop:4}}>picked {currentGame.winner.pick?.name}</div>
-              </div>
-            )}
-            <input className="inp" placeholder="Enter your name to see full results…" value={name}
-              onChange={e=>setName(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinCurrent()} />
-            <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}>
-              {busy ? "Loading…" : "See Full Results →"}
-            </button>
-          </div>
-        )}
+        {/* Results game - show winner or rejoin - uses separate component to avoid shared state */}
+        {currentGame && currentGame.status === "results" && <ResultsRejoinCard game={currentGame} />}
       </div>
     );
   }
@@ -452,10 +478,17 @@ export default function App() {
       try {
         const d = await api({action:"create", gameId, adminName:adminName.trim(), match});
         if (!d || !d.game) { setErr("Failed to create game"); setBusy(false); return; }
+        // Clear all old game state before setting new game
+        setTeamSheet(null);
+        setSheetTab("home");
+        setModal(null);
+        setErr("");
         setGame(d.game);
         setMyName(adminName.trim());
         setIsAdmin(true);
         setCurrentGame(d.game);
+        // Clear old session
+        try { localStorage.removeItem("ff"); } catch {}
         setScreen("lobby");
       } catch(e) { setErr(e.message || "Error creating game"); }
       setBusy(false);

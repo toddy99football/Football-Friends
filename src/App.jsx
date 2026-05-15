@@ -608,6 +608,25 @@ export default function App() {
             : <div style={{flex:1,fontSize:13,color:"var(--muted)",textAlign:"center",padding:"10px 0"}}>Waiting for admin…</div>
           }
         </div>
+        {isAdmin && (
+          <div style={{textAlign:"center",marginTop:14}}>
+            <span
+              style={{fontSize:12,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}
+              onClick={async()=>{
+                if(!window.confirm("Cancel this game? All players will be removed and the pot cleared.")) return;
+                try {
+                  await api({action:"cancel", gameId:game.id});
+                  setCurrentGame(null);
+                  setGame(null);
+                  setMyName("");
+                  setIsAdmin(false);
+                  try { localStorage.removeItem("ff"); } catch {}
+                  setScreen("home");
+                } catch(e){ setErr(e.message); }
+              }}
+            >Cancel game</span>
+          </div>
+        )}
       </div>
     );
   }

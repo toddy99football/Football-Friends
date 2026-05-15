@@ -313,7 +313,7 @@ export default function App() {
       setBusy(true); setErr("");
       try {
         const d = await api({action:"join", gameId:currentGame.id, playerName:name.trim()});
-        if (!d || !d.game || !Array.isArray(d.game.players)) { setErr("Failed to join. Try again."); setBusy(false); return; }
+        if (!d || !d.game || !Array.isArray(d.game.players)) { setErr("Failed to join."); setBusy(false); return; }
         if (d.error) { setErr(d.error); setBusy(false); return; }
         setGame(d.game);
         setMyName(name.trim());
@@ -325,58 +325,87 @@ export default function App() {
       setBusy(false);
     }
 
+    if (showCreate) return <CreateGameForm onDone={() => setShowCreate(false)} />;
+
+    const hasGame = currentGame && Array.isArray(currentGame.players) && currentGame.status !== "results";
+    const av = hasGame ? avail(currentGame.match) : null;
+
     return (
       <div className="con">
         {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={()=>setErr("")}>✕</span></div>}
 
-        {/* Always show name input at top */}
-        {!showCreate && (
-          <>
-            <div style={{textAlign:"center",marginBottom:20}}>
-              <div style={{fontSize:40,marginBottom:8}}>⚽</div>
+        {loading ? (
+          <div className="loading" style={{paddingTop:60}}><div className="spin"/><p>Checking for live games…</p></div>
+        ) : hasGame ? (
+          <div>
+            <div style={{textAlign:"center",marginBottom:20,paddingTop:8}}>
+              <div className={"avail "+av.cls} style={{display:"inline-flex",marginBottom:14,fontSize:12,padding:"5px 14px"}}>
+                <div className="av-dot"/>{av.label}
+              </div>
+              <div style={{fontFamily:"var(--fh)",fontSize:"clamp(24px,6vw,40px)",fontWeight:900,textTransform:"uppercase",lineHeight:1,marginBottom:4}}>
+                {currentGame.match?.home}
+              </div>
+              <div style={{fontFamily:"var(--fh)",fontSize:15,color:"var(--muted)",fontWeight:700,margin:"6px 0"}}>vs</div>
+              <div style={{fontFamily:"var(--fh)",fontSize:"clamp(24px,6vw,40px)",fontWeight:900,textTransform:"uppercase",lineHeight:1,marginBottom:10}}>
+                {currentGame.match?.away}
+              </div>
+              <div style={{color:"var(--muted)",fontSize:13}}>{currentGame.match?.date} · {currentGame.match?.time}</div>
             </div>
 
-            {/* Live game card */}
-            {loading ? (
-              <div className="loading"><div className="spin"/><p>Checking for live games…</p></div>
-            ) : currentGame && currentGame.status !== "results" ? (
-              <>
-                <div className="live-badge" style={{marginBottom:10}}><div className="live-dot"/>Live Game</div>
-                <div className="live-game" style={{cursor:"default"}}>
-                  <div style={{fontFamily:"var(--fh)",fontSize:"clamp(16px,4vw,22px)",fontWeight:900,textTransform:"uppercase",lineHeight:1.1,marginBottom:6}}>
-                    {currentGame.match?.home} <span style={{color:"var(--muted)"}}>vs</span> {currentGame.match?.away}
-                  </div>
-                  <div style={{color:"var(--muted)",fontSize:13,marginBottom:16}}>
-                    {currentGame.match?.date} · {currentGame.match?.time} · {currentGame.players?.length || 0} players · £{currentGame.players?.length || 0} pot
-                  </div>
-                  <div className="lbl">Your Name</div>
-                  <input className="inp" placeholder="Enter your name…" value={name}
-                    onChange={e=>setName(e.target.value)}
-                    onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinCurrent()} autoFocus />
-                  <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}>
-                    {busy ? "Joining…" : "Join Game →"}
-                  </button>
-                </div>
-              </>
-            ) : !loading ? (
-              <div style={{textAlign:"center",padding:"30px 20px"}}>
-                <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Game</div>
-                <div style={{color:"var(--muted)",fontSize:14}}>Ask your organiser to create a game, then refresh</div>
-                <button className="btn btn-g" style={{marginTop:16,width:"auto",padding:"10px 20px",fontSize:14}} onClick={async()=>{
-                  try { const d = await api({action:"getCurrent"}); if(d&&d.game&&Array.isArray(d.game.players))setCurrentGame(d.game); else setCurrentGame(null); } catch{}
-                }}>↻ Refresh</button>
-              </div>
-            ) : null}
+            <div className="stats" style={{marginBottom:20}}>
+              <div className="stat"><div className="stat-v">{currentGame.players.length}</div><div className="stat-l">Players In</div></div>
+              <div className="stat"><div className="stat-v">£{currentGame.players.length}</div><div className="stat-l">Prize Pot</div></div>
+              <div className="stat"><div className="stat-v">{10-currentGame.players.length}</div><div className="stat-l">Slots Left</div></div>
+            </div>
 
-            <div style={{textAlign:"center",marginTop:16}}>
+            {currentGame.players.length > 0 && (
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:20,justifyContent:"center"}}>
+                {currentGame.players.map((p,i) => (
+                  <div key={i} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:20,padding:"4px 12px",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{color:COLS[i%COLS.length],fontSize:10}}>●</span>{p.name}
+                    {p.pick && <span style={{color:"#00e676",fontSize:11}}>✓</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="card hi">
+              <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
+                Join the Sweepstake — £1 Entry
+              </div>
+              <input className="inp" placeholder="Enter your name…" value={name}
+                onChange={e=>setName(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinCurrent()}
+                autoFocus style={{fontSize:17,padding:"14px 16px"}} />
+              <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}
+                style={{fontSize:19,padding:"15px"}}>
+                {busy ? "Joining…" : "⚽ Join & Pick a Player →"}
+              </button>
+            </div>
+
+            <div style={{textAlign:"center",marginTop:14}}>
+              <span style={{fontSize:12,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowCreate(true)}>
+                Create a new game instead
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div style={{textAlign:"center",padding:"50px 20px"}}>
+            <div style={{fontSize:52,marginBottom:16}}>⚽</div>
+            <div style={{fontFamily:"var(--fh)",fontSize:24,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Game</div>
+            <div style={{color:"var(--muted)",fontSize:14,marginBottom:24,lineHeight:1.6}}>Ask your organiser to create a game,<br/>then refresh this page</div>
+            <button className="btn btn-g" style={{width:"auto",padding:"10px 24px",fontSize:15}} onClick={async()=>{
+              setLoading(true);
+              try { const d = await api({action:"getCurrent"}); if(d&&d.game&&Array.isArray(d.game.players))setCurrentGame(d.game); else setCurrentGame(null); } catch{}
+              setLoading(false);
+            }}>↻ Refresh</button>
+            <div style={{marginTop:16}}>
               <span style={{fontSize:13,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowCreate(true)}>
                 Are you the organiser? Create a game
               </span>
             </div>
-          </>
+          </div>
         )}
-
-        {showCreate && <CreateGameForm onDone={() => setShowCreate(false)} />}
       </div>
     );
   }
@@ -464,8 +493,18 @@ export default function App() {
 
     async function startPicking() {
       try {
+        // First refresh to get latest player list
+        const latest = await api({action:"get", gameId:game.id});
+        if (latest && latest.game && Array.isArray(latest.game.players)) {
+          setGame(latest.game);
+        }
+        // Then open picking
         const d = await api({action:"startPicking", gameId:game.id});
-        if (d && d.game) { setGame(d.game); setScreen("picking"); loadSheet(game.match); }
+        if (d && d.game && Array.isArray(d.game.players)) {
+          setGame(d.game);
+          setScreen("picking");
+          loadSheet(d.game.match);
+        }
       } catch(e) { setErr(e.message); }
     }
 

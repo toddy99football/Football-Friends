@@ -248,38 +248,55 @@ export default function App() {
         home: {
           team: "Aston Villa", colour: "#95bfe5",
           players: [
-            {number:1,  name:"Emiliano Martínez", pos:"GK"},
-            {number:2,  name:"Matty Cash",         pos:"DEF"},
-            {number:5,  name:"Ezri Konsa",         pos:"DEF"},
-            {number:6,  name:"Pau Torres",          pos:"DEF"},
-            {number:3,  name:"Lucas Digne",         pos:"DEF"},
-            {number:8,  name:"Youri Tielemans",     pos:"MID"},
-            {number:4,  name:"Douglas Luiz",        pos:"MID"},
-            {number:7,  name:"John McGinn",         pos:"MID"},
-            {number:10, name:"Ross Barkley",        pos:"MID"},
-            {number:11, name:"Morgan Rogers",       pos:"FWD"},
-            {number:9,  name:"Ollie Watkins",       pos:"FWD"},
+            // Confirmed starters
+            {number:1,  name:"Emiliano Martínez",   pos:"GK"},
+            {number:12, name:"Lucas Digne",          pos:"DEF"},
+            {number:14, name:"Pau Torres",           pos:"DEF"},
+            {number:4,  name:"Ezri Konsa",           pos:"DEF"},
+            {number:2,  name:"Matty Cash",           pos:"DEF"},
+            {number:8,  name:"Youri Tielemans",      pos:"MID"},
+            {number:3,  name:"Victor Lindelöf",      pos:"MID"},
+            {number:10, name:"Emiliano Buendía",     pos:"MID"},
+            {number:27, name:"Morgan Rogers",        pos:"MID"},
+            {number:7,  name:"John McGinn",          pos:"MID"},
+            {number:11, name:"Ollie Watkins",        pos:"FWD"},
+            // Subs
+            {number:31, name:"Leon Bailey",          pos:"FWD"},
+            {number:18, name:"Tammy Abraham",        pos:"FWD"},
+            {number:6,  name:"Ross Barkley",         pos:"MID"},
+            {number:40, name:"Marco Bizot",          pos:"GK"},
+            {number:26, name:"Lamare Bogarde",       pos:"DEF"},
+            {number:16, name:"Andrés García",        pos:"DEF"},
+            {number:22, name:"Ian Maatsen",          pos:"DEF"},
+            {number:19, name:"Jadon Sancho",         pos:"FWD"},
+            {number:21, name:"Douglas Luiz",         pos:"MID"},
           ]
         },
         away: {
           team: "Liverpool", colour: "#e63946",
           players: [
-            {number:1,  name:"Giorgi Mamardashvili",pos:"GK"},
-            {number:2,  name:"Joe Gomez",           pos:"DEF"},
-            {number:5,  name:"Ibrahima Konaté",     pos:"DEF"},
-            {number:4,  name:"Virgil van Dijk",     pos:"DEF"},
-            {number:26, name:"Milos Kerkez",        pos:"DEF"},
-            {number:38, name:"Ryan Gravenberch",    pos:"MID"},
-            {number:10, name:"Alexis Mac Allister", pos:"MID"},
-            {number:17, name:"Curtis Jones",        pos:"MID"},
-            {number:8,  name:"Dominik Szoboszlai",  pos:"MID"},
-            {number:18, name:"Cody Gakpo",          pos:"FWD"},
-            {number:87, name:"Rio Ngumoha",         pos:"FWD"},
-            {number:11, name:"Mohamed Salah",       pos:"FWD"},
-            {number:23, name:"Florian Wirtz",       pos:"MID"},
-            {number:14, name:"Federico Chiesa",     pos:"FWD"},
-            {number:26, name:"Andrew Robertson",    pos:"DEF"},
-            {number:25, name:"Caoimhin Kelleher",   pos:"GK"},
+            // Confirmed starters
+            {number:1,  name:"Giorgi Mamardashvili", pos:"GK"},
+            {number:6,  name:"Milos Kerkez",         pos:"DEF"},
+            {number:4,  name:"Virgil van Dijk",      pos:"DEF"},
+            {number:5,  name:"Ibrahima Konaté",      pos:"DEF"},
+            {number:2,  name:"Joe Gomez",            pos:"DEF"},
+            {number:10, name:"Alexis Mac Allister",  pos:"MID"},
+            {number:38, name:"Ryan Gravenberch",     pos:"MID"},
+            {number:73, name:"Rio Ngumoha",          pos:"MID"},
+            {number:17, name:"Curtis Jones",         pos:"MID"},
+            {number:8,  name:"Dominik Szoboszlai",   pos:"MID"},
+            {number:18, name:"Cody Gakpo",           pos:"FWD"},
+            // Subs
+            {number:14, name:"Federico Chiesa",      pos:"FWD"},
+            {number:53, name:"James McConnell",      pos:"MID"},
+            {number:75, name:"Talla Ndiaye",         pos:"FWD"},
+            {number:42, name:"Trey Nyoni",           pos:"MID"},
+            {number:26, name:"Andrew Robertson",     pos:"DEF"},
+            {number:11, name:"Mohamed Salah",        pos:"FWD"},
+            {number:7,  name:"Florian Wirtz",        pos:"MID"},
+            {number:28, name:"Freddie Woodman",      pos:"GK"},
+            {number:79, name:"Will Wright",          pos:"MID"},
           ]
         }
       }
@@ -288,54 +305,50 @@ export default function App() {
     // Try API first
     try {
       const now = new Date();
-      const timeStr = now.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
       const dateStr = now.toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric"});
-      const prompt = "It is " + dateStr + " " + timeStr + ". Search for the CONFIRMED official starting lineup for " +
-        match.home + " vs " + match.away + " Premier League tonight. " +
-        "Return ONLY a raw JSON array starting with [ and ending with ]. No markdown, no explanation, no text before or after. " +
-        "Format exactly: " +
-        '[{"team":"' + match.home + '","colour":"#e63946","players":[{"number":9,"name":"Full Player Name","pos":"FWD"}]},' +
-        '{"team":"' + match.away + '","colour":"#e63946","players":[{"number":1,"name":"Full Player Name","pos":"GK"}]}]' +
-        " Include all 11 starters and up to 7 substitutes. pos must be GK, DEF, MID, or FWD only. Use real confirmed player names.";
+      const timeStr = now.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
 
       const d = await aiCall({
         model: "claude-sonnet-4-20250514",
         max_tokens: 2000,
+        system: "You are a football data API. You ONLY respond with raw JSON arrays. No explanation, no markdown, no text before or after the JSON. Your entire response must be a valid JSON array starting with [ and ending with ].",
         tools: [{type:"web_search_20250305", name:"web_search"}],
-        messages: [{role:"user", content: prompt}]
+        messages: [{
+          role: "user",
+          content: "Search for the confirmed official starting lineup for " + match.home + " vs " + match.away +
+            " Premier League on " + dateStr + ". Return ONLY this JSON array with nothing else: " +
+            '[{"team":"' + match.home + '","colour":"#95bfe5","players":[{"number":1,"name":"Player Name","pos":"GK"}]},' +
+            '{"team":"' + match.away + '","colour":"#e63946","players":[{"number":1,"name":"Player Name","pos":"GK"}]}]' +
+            ". Use real confirmed player names, real shirt numbers. pos must be GK DEF MID or FWD. Include all 11 starters and all subs."
+        }]
       });
 
-      // Extract text from all content blocks
-      const allText = (d.content || []).map(b => b.text || "").join(" ");
-
-      // Find the JSON array - look for [ ... ] pattern
-      const firstBracket = allText.indexOf("[");
-      const lastBracket = allText.lastIndexOf("]");
-
-      if (firstBracket >= 0 && lastBracket > firstBracket) {
-        const jsonStr = allText.slice(firstBracket, lastBracket + 1);
-        const parsed = JSON.parse(jsonStr);
-
-        if (
-          Array.isArray(parsed) &&
-          parsed.length >= 2 &&
-          Array.isArray(parsed[0]?.players) &&
-          parsed[0].players.length >= 5 &&
-          Array.isArray(parsed[1]?.players) &&
-          parsed[1].players.length >= 5
-        ) {
-          setTeamSheet({home: parsed[0], away: parsed[1]});
-          setSheetTab("home");
-          setLoadingSheet(false);
-          return;
+      // Extract text blocks only
+      const textBlocks = (d.content || []).filter(b => b.type === "text").map(b => b.text || "").join(" ");
+      
+      if (textBlocks) {
+        const s = textBlocks.indexOf("[");
+        const e = textBlocks.lastIndexOf("]");
+        if (s >= 0 && e > s) {
+          const parsed = JSON.parse(textBlocks.slice(s, e + 1));
+          if (
+            Array.isArray(parsed) && parsed.length >= 2 &&
+            Array.isArray(parsed[0]?.players) && parsed[0].players.length >= 10 &&
+            Array.isArray(parsed[1]?.players) && parsed[1].players.length >= 10
+          ) {
+            setTeamSheet({home: parsed[0], away: parsed[1]});
+            setSheetTab("home");
+            setLoadingSheet(false);
+            return;
+          }
         }
       }
-      throw new Error("API returned invalid data");
+      throw new Error("Invalid response from API");
     } catch(e) {
       console.log("API sheet failed, using hardcoded:", e.message);
     }
 
-    // Fall back to hardcoded or generic
+        // Fall back to hardcoded or generic
     const key = match.home + "|" + match.away;
     if (hardcoded[key]) {
       setTeamSheet(hardcoded[key]);

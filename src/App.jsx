@@ -573,16 +573,31 @@ export default function App() {
           <div className="stat"><div className="stat-v">{10-players.length}</div><div className="stat-l">Slots Left</div></div>
         </div>
 
-        <div className="lbl">Players Joined</div>
+        <div className="lbl">Players Joined — £{players.length} pot</div>
         {players.map((p,i) => (
           <div key={i} className="player-lob" style={p.name===game.adminName?{borderColor:"#e6394840"}:{}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
               <span style={{color:COLS[i%COLS.length],fontSize:18}}>●</span>
               <span style={{fontWeight:600}}>{p.name}</span>
               {p.name===myName&&<span className="badge">You</span>}
               {p.name===game.adminName&&<span style={{fontSize:11,color:"var(--red)",fontFamily:"var(--fh)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginLeft:4}}>Admin</span>}
             </div>
-            <span style={{fontSize:12,color:p.pick?"#00e676":"var(--muted)"}}>{p.pick?"✓ Picked":"Waiting"}</span>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:12,color:p.pick?"#00e676":"var(--muted)"}}>{p.pick?"✓ Picked":"Waiting"}</span>
+              {isAdmin && p.name !== myName && (
+                <span
+                  onClick={async()=>{
+                    if(!window.confirm("Remove "+p.name+" from the game? This will reduce the pot by £1.")) return;
+                    try {
+                      const d = await api({action:"removePlayer",gameId:game.id,playerName:p.name});
+                      if(d&&d.game&&Array.isArray(d.game.players)) setGame(d.game);
+                    } catch(e){setErr(e.message);}
+                  }}
+                  style={{cursor:"pointer",color:"var(--red)",fontSize:16,fontWeight:700,padding:"2px 6px",border:"1px solid #e6394850",borderRadius:4,lineHeight:1}}
+                  title="Remove player"
+                >✕</span>
+              )}
+            </div>
           </div>
         ))}
 

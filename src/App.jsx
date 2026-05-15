@@ -181,6 +181,7 @@ export default function App() {
   const [err, setErr] = useState("");
   const [modal, setModal] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
 
   // On load: check for saved session OR fetch current game
   useEffect(() => {
@@ -262,11 +263,16 @@ export default function App() {
     setLoadingSheet(true);
     setTeamSheet(null);
     try {
-      const prompt = "Search for expected lineup for " + match.home + " vs " + match.away +
-        " Premier League 2025-26. Return ONLY a JSON array, no markdown: " +
-        '[{"team":"' + match.home + '","colour":"#e63946","players":[{"number":1,"name":"Real Player","pos":"GK"}]},' +
-        '{"team":"' + match.away + '","colour":"#4361ee","players":[{"number":1,"name":"Real Player","pos":"GK"}]}]' +
-        ". 11 starters + 5 subs each. pos: GK DEF MID FWD only.";
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"});
+      const dateStr = now.toLocaleDateString("en-GB", {weekday:"short",day:"numeric",month:"short",year:"numeric"});
+      const prompt = "Search for the confirmed or predicted starting lineup for " + match.home + " vs " + match.away +
+        " in the Premier League. Today is " + dateStr + " and the time is " + timeStr + ". " +
+        "If the official lineup has been announced use that, otherwise use the predicted/expected lineup based on recent form and injuries. " +
+        "Return ONLY a JSON array with no markdown, no explanation, nothing else: " +
+        '[{"team":"' + match.home + '","colour":"#e63946","players":[{"number":1,"name":"Actual Player Name","pos":"GK"},{"number":2,"name":"Actual Player Name","pos":"DEF"}]},' +
+        '{"team":"' + match.away + '","colour":"#4361ee","players":[{"number":1,"name":"Actual Player Name","pos":"GK"}]}]' +
+        ". Include 11 starters and up to 5 substitutes per team. pos must be exactly GK, DEF, MID, or FWD. Use real player names.";
       const d = await aiCall({
         model:"claude-sonnet-4-20250514", max_tokens:2000,
         tools:[{type:"web_search_20250305",name:"web_search"}],
@@ -310,12 +316,20 @@ export default function App() {
       if (!rejoinName.trim()) return;
       setBusy(true);
       try {
-        const d = await api({action:"join", gameId:game.id, playerName:rejoinName.trim()});
+        // Only GET the game - don't join/add new players
+        const d = await api({action:"get", gameId:game.id});
         if (!d || !d.game || !Array.isArray(d.game.players)) { setBusy(false); return; }
+        // Check this person was actually in the game
+        const wasInGame = d.game.players.find(p => p.name.toLowerCase() === rejoinName.trim().toLowerCase());
+        if (!wasInGame) {
+          alert("You weren't in this game. Only players who entered can view results.");
+          setBusy(false);
+          return;
+        }
         setTeamSheet(null); setModal(null);
         setGame(d.game);
-        setMyName(rejoinName.trim());
-        setIsAdmin(d.game.adminName === rejoinName.trim());
+        setMyName(wasInGame.name);
+        setIsAdmin(d.game.adminName === wasInGame.name);
         setScreen("results");
       } catch {}
       setBusy(false);
@@ -346,7 +360,6 @@ export default function App() {
   function HomeScreen() {
     const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
-    const [showCreate, setShowCreate] = useState(false);
 
     async function joinCurrent() {
       if (!name.trim() || !currentGame) return;
@@ -369,7 +382,7 @@ export default function App() {
       setBusy(false);
     }
 
-    if (showCreate) return <CreateGameForm onDone={() => { setShowCreate(false); setName(""); }} />;
+    if (showCreate) return null; // CreateGameForm rendered at App level
 
     const hasGame = currentGame && Array.isArray(currentGame.players);
     const isPicking = hasGame && currentGame.status === "picking";
@@ -627,6 +640,13 @@ export default function App() {
     const myPlayer = players.find(p=>p.name===myName);
     const taken = players.filter(p=>p.pick).map(p=>p.pick?.name).filter(Boolean);
 
+    // Load sheet if not already loaded
+    useEffect(() => {
+      if (!teamSheet && !loadingSheet && game?.match) {
+        loadSheet(game.match);
+      }
+    }, []);
+
     if (myPlayer?.pick) return (
       <div className="con">
         <div className="ok">✅ Your pick: <strong>{myPlayer.pick.name}</strong> — Good luck!</div>
@@ -770,7 +790,8 @@ export default function App() {
         </div>
       )}
 
-      {screen==="home" && <HomeScreen/>}
+      {screen==="home" && !showCreate && <HomeScreen/>}
+      {screen==="home" && showCreate && <CreateGameForm onDone={() => setShowCreate(false)} />}
       {screen==="lobby" && game && <LobbyScreen/>}
       {screen==="picking" && game && <PickingScreen/>}
       {screen==="results" && game && <ResultsScreen/>}

@@ -117,6 +117,14 @@ module.exports = async function handler(req, res) {
         return res.json({ game: game });
       }
 
+      case 'removePlayer': {
+        const game = await redisGet('game:' + gameId);
+        if (!game) return res.status(404).json({ error: 'Game not found' });
+        game.players = game.players.filter(function(p) { return p.name !== playerName; });
+        await redisSet('game:' + game.id, game);
+        return res.json({ game: game });
+      }
+
       default:
         return res.status(400).json({ error: 'Unknown action: ' + action });
     }

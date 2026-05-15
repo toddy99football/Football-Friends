@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-// ── Fonts ──────────────────────────────────────────────────────────────────
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
 fl.href = "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=DM+Sans:wght@300;400;500&display=swap";
@@ -10,104 +9,101 @@ const styleEl = document.createElement("style");
 styleEl.textContent = `
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg: #0a0a0a; --surface: #111; --card: #1a1a1a; --border: #2d2d2d;
-  --red: #e63946; --red-dim: #e6394622; --amber: #ffb300;
-  --text: #f0f0f0; --muted: #666; --radius: 10px;
-  --fh: 'Barlow Condensed', sans-serif; --fb: 'DM Sans', sans-serif;
+  --bg:#0a0a0a; --surface:#111; --card:#1a1a1a; --border:#2d2d2d;
+  --red:#e63946; --red-dim:#e6394622; --amber:#ffb300;
+  --text:#f0f0f0; --muted:#666; --radius:10px;
+  --fh:'Barlow Condensed',sans-serif; --fb:'DM Sans',sans-serif;
 }
-body { background: var(--bg); color: var(--text); font-family: var(--fb); }
-.app { min-height: 100vh; padding-bottom: 60px; background: radial-gradient(ellipse 80% 30% at 50% 0%, #2a0808 0%, transparent 60%), var(--bg); }
-.header { text-align: center; padding: 36px 20px 24px; border-bottom: 1px solid var(--border); }
-.header h1 { font-family: var(--fh); font-size: clamp(36px,8vw,68px); font-weight: 900; line-height: .95; text-transform: uppercase; background: linear-gradient(135deg,#fff,var(--red)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.header p { color: var(--muted); font-size: 13px; margin-top: 8px; letter-spacing: 1px; }
-.divider { width: 50px; height: 3px; background: var(--red); margin: 12px auto 0; border-radius: 2px; }
-.con { max-width: 660px; margin: 0 auto; padding: 24px 16px; }
-.lbl { font-family: var(--fh); font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; }
-.card.hi { border-color: var(--red); box-shadow: 0 0 20px #e6394415; }
-.btn { font-family: var(--fh); font-size: 17px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 13px 24px; border-radius: var(--radius); border: none; cursor: pointer; transition: all 0.2s; width: 100%; display: block; text-align: center; margin-top: 10px; }
-.btn-r { background: var(--red); color: #fff; }
-.btn-r:hover { background: #ff4d5a; box-shadow: 0 0 20px #e6394450; }
-.btn-r:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; box-shadow: none; }
-.btn-g { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-.btn-g:hover { border-color: var(--text); color: var(--text); }
-.btn-gold { background: linear-gradient(135deg,#c9a227,#ffb300); color: #000; }
-.inp { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--fb); font-size: 15px; padding: 12px 14px; width: 100%; outline: none; transition: border-color .2s; margin-bottom: 10px; }
-.inp:focus { border-color: var(--red); }
-.spin { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 14px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading { text-align: center; padding: 50px 20px; color: var(--muted); font-size: 14px; }
-.match-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px 18px; margin-bottom: 10px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 12px; }
-.match-card:hover { border-color: var(--red); transform: translateY(-1px); }
-.match-card.sel { border-color: var(--red); background: linear-gradient(135deg,#1a1a1a,#150505); }
-.match-vs { font-family: var(--fh); font-size: clamp(14px,3vw,19px); font-weight: 900; flex: 1; }
-.match-dt { font-size: 12px; color: var(--muted); }
-.avail { display: inline-flex; align-items: center; gap: 4px; font-family: var(--fh); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 7px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
-.av-ok { background: #00e67618; color: #00e676; border: 1px solid #00e67640; }
-.av-soon { background: #ffb30018; color: var(--amber); border: 1px solid #ffb30040; animation: pulse 2s ease infinite; }
-.av-no { background: #ffffff10; color: var(--muted); border: 1px solid #ffffff18; }
+body { background:var(--bg); color:var(--text); font-family:var(--fb); }
+.app { min-height:100vh; padding-bottom:60px; background:radial-gradient(ellipse 80% 30% at 50% 0%,#2a0808 0%,transparent 60%),var(--bg); }
+.header { text-align:center; padding:36px 20px 24px; border-bottom:1px solid var(--border); }
+.header h1 { font-family:var(--fh); font-size:clamp(34px,8vw,66px); font-weight:900; line-height:.95; text-transform:uppercase; background:linear-gradient(135deg,#fff,var(--red)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.header p { color:var(--muted); font-size:13px; margin-top:8px; letter-spacing:1px; }
+.divider { width:50px; height:3px; background:var(--red); margin:12px auto 0; border-radius:2px; }
+.con { max-width:660px; margin:0 auto; padding:24px 16px; }
+.lbl { font-family:var(--fh); font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:12px; }
+.card.hi { border-color:var(--red); box-shadow:0 0 20px #e6394415; }
+.btn { font-family:var(--fh); font-size:17px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:13px 24px; border-radius:var(--radius); border:none; cursor:pointer; transition:all .2s; width:100%; display:block; text-align:center; margin-top:10px; }
+.btn-r { background:var(--red); color:#fff; }
+.btn-r:hover { background:#ff4d5a; box-shadow:0 0 20px #e6394450; }
+.btn-r:disabled { background:var(--border); color:var(--muted); cursor:not-allowed; box-shadow:none; }
+.btn-g { background:transparent; color:var(--muted); border:1px solid var(--border); }
+.btn-g:hover { border-color:var(--text); color:var(--text); }
+.btn-gold { background:linear-gradient(135deg,#c9a227,#ffb300); color:#000; }
+.btn-sm { font-size:14px; padding:10px 18px; width:auto; margin-top:0; }
+.inp { background:var(--surface); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--fb); font-size:15px; padding:12px 14px; width:100%; outline:none; transition:border-color .2s; margin-bottom:10px; }
+.inp:focus { border-color:var(--red); }
+.spin { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--red); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 14px; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.loading { text-align:center; padding:50px 20px; color:var(--muted); font-size:14px; }
+.match-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:15px 18px; margin-bottom:10px; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:12px; }
+.match-card:hover { border-color:var(--red); transform:translateY(-1px); }
+.match-card.sel { border-color:var(--red); background:linear-gradient(135deg,#1a1a1a,#150505); }
+.match-vs { font-family:var(--fh); font-size:clamp(14px,3vw,19px); font-weight:900; flex:1; }
+.match-dt { font-size:12px; color:var(--muted); margin-top:2px; }
+.avail { display:inline-flex; align-items:center; gap:4px; font-family:var(--fh); font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 7px; border-radius:20px; white-space:nowrap; flex-shrink:0; }
+.av-ok { background:#00e67618; color:#00e676; border:1px solid #00e67640; }
+.av-soon { background:#ffb30018; color:var(--amber); border:1px solid #ffb30040; animation:pulse 2s ease infinite; }
+.av-no { background:#ffffff10; color:var(--muted); border:1px solid #ffffff18; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
-.av-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-.av-ok .av-dot { background: #00e676; }
-.av-soon .av-dot { background: var(--amber); }
-.av-no .av-dot { background: var(--muted); }
-.team-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
-.team-hdr { padding: 12px 16px; font-family: var(--fh); font-size: 18px; font-weight: 900; text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-.tdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-.prow { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid #1e1e1e; cursor: pointer; transition: background .15s; }
-.prow:last-child { border-bottom: none; }
-.prow:hover { background: #ffffff06; }
-.prow.taken { opacity: .3; cursor: not-allowed; }
-.prow.mine { background: var(--red-dim); }
-.pnum { font-family: var(--fh); font-size: 12px; font-weight: 700; color: var(--muted); width: 20px; text-align: center; flex-shrink: 0; }
-.pname { font-size: 14px; font-weight: 500; flex: 1; }
-.ppos { font-family: var(--fh); font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 2px 5px; border-radius: 4px; text-transform: uppercase; flex-shrink: 0; }
-.pos-GK { background: #ffd60018; color: #ffd600; }
-.pos-DEF { background: #4fc3f718; color: #4fc3f7; }
-.pos-MID { background: #ab47bc18; color: #ce93d8; }
-.pos-FWD { background: #e6394818; color: #ff8a80; }
-.tabs { display: flex; gap: 6px; margin-bottom: 14px; }
-.tab { font-family: var(--fh); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 8px 16px; border-radius: 6px; cursor: pointer; flex: 1; text-align: center; background: var(--surface); border: 1px solid var(--border); color: var(--muted); transition: all .15s; }
-.tab.active { background: var(--red); color: #fff; border-color: var(--red); }
-.overlay { position: fixed; inset: 0; background: #000000b0; display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(6px); padding: 20px; }
-.modal { background: var(--card); border: 1px solid var(--red); border-radius: 14px; padding: 28px; max-width: 380px; width: 100%; text-align: center; animation: pop .25s cubic-bezier(.34,1.56,.64,1); box-shadow: 0 0 50px #e6394430; }
+.av-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.av-ok .av-dot { background:#00e676; }
+.av-soon .av-dot { background:var(--amber); }
+.av-no .av-dot { background:var(--muted); }
+.team-panel { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:14px; }
+.team-hdr { padding:12px 16px; font-family:var(--fh); font-size:18px; font-weight:900; text-transform:uppercase; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+.tdot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.prow { display:flex; align-items:center; gap:10px; padding:9px 16px; border-bottom:1px solid #1e1e1e; cursor:pointer; transition:background .15s; }
+.prow:last-child { border-bottom:none; }
+.prow:hover { background:#ffffff06; }
+.prow.taken { opacity:.3; cursor:not-allowed; }
+.pnum { font-family:var(--fh); font-size:12px; font-weight:700; color:var(--muted); width:20px; text-align:center; flex-shrink:0; }
+.pname { font-size:14px; font-weight:500; flex:1; }
+.ppos { font-family:var(--fh); font-size:10px; font-weight:700; letter-spacing:1px; padding:2px 5px; border-radius:4px; text-transform:uppercase; flex-shrink:0; }
+.pos-GK { background:#ffd60018; color:#ffd600; }
+.pos-DEF { background:#4fc3f718; color:#4fc3f7; }
+.pos-MID { background:#ab47bc18; color:#ce93d8; }
+.pos-FWD { background:#e6394818; color:#ff8a80; }
+.tabs { display:flex; gap:6px; margin-bottom:14px; }
+.tab { font-family:var(--fh); font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:1px; padding:8px 16px; border-radius:6px; cursor:pointer; flex:1; text-align:center; background:var(--surface); border:1px solid var(--border); color:var(--muted); transition:all .15s; }
+.tab.active { background:var(--red); color:#fff; border-color:var(--red); }
+.overlay { position:fixed; inset:0; background:#000000b0; display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter:blur(6px); padding:20px; }
+.modal { background:var(--card); border:1px solid var(--red); border-radius:14px; padding:28px; max-width:380px; width:100%; text-align:center; animation:pop .25s cubic-bezier(.34,1.56,.64,1); box-shadow:0 0 50px #e6394430; }
 @keyframes pop { from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1} }
-.modal h2 { font-family: var(--fh); font-size: 26px; font-weight: 900; text-transform: uppercase; margin-bottom: 6px; }
-.modal-pick { font-family: var(--fh); font-size: 22px; font-weight: 700; color: var(--red); background: var(--red-dim); border-radius: 8px; padding: 10px 18px; margin: 14px 0; border: 1px solid #e6394835; }
-.notice { background: #ffb30012; border: 1px solid #ffb30030; border-radius: 8px; padding: 11px 14px; font-size: 13px; color: var(--amber); margin-bottom: 12px; }
-.err { background: #e6394812; border: 1px solid #e6394830; border-radius: 8px; padding: 11px 14px; font-size: 13px; color: var(--red); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.ok { background: #00e67612; border: 1px solid #00e67630; border-radius: 8px; padding: 11px 14px; font-size: 13px; color: #00e676; margin-bottom: 12px; }
-.pick-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.pick-row:last-child { border-bottom: none; }
-.pot { font-family: var(--fh); font-size: 56px; font-weight: 900; color: var(--red); line-height: 1; }
-.winner-wrap { text-align: center; padding: 40px 20px; }
-.trophy { font-size: 72px; display: block; animation: bounce 1s ease infinite alternate; margin-bottom: 14px; }
+.modal h2 { font-family:var(--fh); font-size:26px; font-weight:900; text-transform:uppercase; margin-bottom:6px; }
+.modal-pick { font-family:var(--fh); font-size:22px; font-weight:700; color:var(--red); background:var(--red-dim); border-radius:8px; padding:10px 18px; margin:14px 0; border:1px solid #e6394835; }
+.notice { background:#ffb30012; border:1px solid #ffb30030; border-radius:8px; padding:11px 14px; font-size:13px; color:var(--amber); margin-bottom:12px; }
+.err { background:#e6394812; border:1px solid #e6394830; border-radius:8px; padding:11px 14px; font-size:13px; color:var(--red); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.ok { background:#00e67612; border:1px solid #00e67630; border-radius:8px; padding:11px 14px; font-size:13px; color:#00e676; margin-bottom:12px; }
+.pick-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border); }
+.pick-row:last-child { border-bottom:none; }
+.pot { font-family:var(--fh); font-size:56px; font-weight:900; color:var(--red); line-height:1; }
+.winner-wrap { text-align:center; padding:40px 20px; }
+.trophy { font-size:72px; display:block; animation:bounce 1s ease infinite alternate; margin-bottom:14px; }
 @keyframes bounce { from{transform:translateY(0) rotate(-5deg)}to{transform:translateY(-12px) rotate(5deg)} }
-.winner-name { font-family: var(--fh); font-size: clamp(42px,10vw,76px); font-weight: 900; text-transform: uppercase; background: linear-gradient(135deg,#fff,var(--red)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.game-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 7px 20px; display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 12px; color: var(--muted); }
-.game-bar strong { color: var(--text); font-family: var(--fh); font-size: 15px; letter-spacing: 2px; }
-.leave { color: var(--red); font-size: 11px; font-family: var(--fh); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border: 1px solid var(--red); padding: 2px 8px; border-radius: 4px; }
-.home-opt { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
-.home-opt:hover { border-color: var(--red); transform: translateY(-2px); box-shadow: 0 6px 24px #e6394418; }
-.home-opt-icon { font-size: 30px; flex-shrink: 0; }
-.home-opt-title { font-family: var(--fh); font-size: 19px; font-weight: 900; text-transform: uppercase; }
-.home-opt-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.gamecode { font-family: var(--fh); font-size: 36px; font-weight: 900; color: var(--red); letter-spacing: 4px; text-align: center; padding: 12px 0; }
-.stats { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
-.stat { flex: 1; text-align: center; padding: 14px 8px; border-right: 1px solid var(--border); }
-.stat:last-child { border-right: none; }
-.stat-v { font-family: var(--fh); font-size: 26px; font-weight: 900; color: var(--red); }
-.stat-l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-family: var(--fh); }
-.share-box { background: var(--surface); border: 1px solid var(--red); border-radius: 8px; padding: 12px 16px; font-size: 13px; word-break: break-all; color: var(--red); margin: 8px 0; cursor: pointer; text-align: center; }
-.player-lob { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.badge { font-family: var(--fh); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 2px 7px; border-radius: 10px; background: var(--red-dim); color: var(--red); border: 1px solid #e6394835; margin-left: 8px; }
-.two { display: flex; gap: 10px; margin-top: 10px; }
-.two .btn { margin-top: 0; }
+.winner-name { font-family:var(--fh); font-size:clamp(42px,10vw,76px); font-weight:900; text-transform:uppercase; background:linear-gradient(135deg,#fff,var(--red)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.game-bar { background:var(--surface); border-bottom:1px solid var(--border); padding:7px 20px; display:flex; align-items:center; justify-content:center; gap:14px; font-size:12px; color:var(--muted); }
+.game-bar strong { color:var(--text); font-family:var(--fh); font-size:14px; letter-spacing:1px; }
+.leave { color:var(--red); font-size:11px; font-family:var(--fh); font-weight:700; letter-spacing:1px; text-transform:uppercase; cursor:pointer; border:1px solid var(--red); padding:2px 8px; border-radius:4px; }
+.stats { display:flex; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:16px; }
+.stat { flex:1; text-align:center; padding:14px 8px; border-right:1px solid var(--border); }
+.stat:last-child { border-right:none; }
+.stat-v { font-family:var(--fh); font-size:26px; font-weight:900; color:var(--red); }
+.stat-l { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-family:var(--fh); }
+.share-box { background:var(--surface); border:1px solid var(--red); border-radius:8px; padding:12px 16px; font-size:13px; word-break:break-all; color:var(--red); margin:8px 0; cursor:pointer; text-align:center; }
+.player-lob { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:11px 14px; display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.badge { font-family:var(--fh); font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:2px 7px; border-radius:10px; background:var(--red-dim); color:var(--red); border:1px solid #e6394835; margin-left:8px; }
+.two { display:flex; gap:10px; margin-top:12px; }
+.live-game { background:linear-gradient(135deg,#1a0505,#1a1a1a); border:2px solid var(--red); border-radius:var(--radius); padding:20px; margin-bottom:16px; cursor:pointer; transition:all .2s; }
+.live-game:hover { box-shadow:0 0 30px #e6394430; transform:translateY(-2px); }
+.live-badge { display:inline-flex; align-items:center; gap:5px; font-family:var(--fh); font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--red); margin-bottom:10px; }
+.live-dot { width:7px; height:7px; background:var(--red); border-radius:50%; animation:pulse 1s ease infinite; }
 `;
 document.head.appendChild(styleEl);
 
-// ── Constants ─────────────────────────────────────────────────────────────
 const COLS = ["#e63946","#ff6b35","#c9a227","#4361ee","#9b5de5","#00b4d8","#06d6a0","#fb8500","#e07a5f","#52b788"];
+
 const FIXTURES = [
   { home:"Aston Villa", away:"Liverpool", date:"Fri 15 May", time:"20:00" },
   { home:"Brentford", away:"Crystal Palace", date:"Sat 17 May", time:"12:30" },
@@ -130,25 +126,20 @@ const FIXTURES = [
   { home:"West Ham United", away:"Leeds United", date:"Sun 24 May", time:"17:00" },
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).substr(2,8).toUpperCase(); }
 
 async function api(body) {
   const res = await fetch("/api/game", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+  if (!res.ok) throw new Error(data.error || "HTTP "+res.status);
   return data;
 }
 
 async function aiCall(body) {
   const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body),
   });
   return res.json();
 }
@@ -159,7 +150,6 @@ function avail(match) {
     const p = match.date.replace(/^[A-Za-z]{2,3}\s/,"").split(" ");
     const ko = new Date(new Date().getFullYear(), months[p[1]], parseInt(p[0]), ...match.time.split(":").map(Number));
     const now = new Date();
-    if (ko < now && (now-ko) > 7*864e5) ko.setFullYear(ko.getFullYear()+1);
     const ann = new Date(ko - 36e5);
     const hrs = (ko - now) / 36e5;
     if (now >= ann) return {cls:"av-ok", label:"Sheet Live"};
@@ -176,42 +166,56 @@ function fallback(team, side) {
   const rows = side==="home"
     ? [["1","GK","GK"],["2","DEF","RB"],["5","DEF","CB"],["6","DEF","CB"],["3","DEF","LB"],["4","MID","DM"],["8","MID","CM"],["10","MID","AM"],["7","FWD","RW"],["9","FWD","ST"],["11","FWD","LW"]]
     : [["1","GK","GK"],["2","DEF","RB"],["4","DEF","CB"],["5","DEF","CB"],["3","DEF","LB"],["6","MID","DM"],["8","MID","CM"],["10","MID","AM"],["7","FWD","RW"],["9","FWD","ST"],["11","FWD","LW"]];
-  return rows.map(([n,pos,lbl]) => ({number:n,name:team+" "+lbl,pos}));
+  return rows.map(([n,pos,lbl]) => ({number:n, name:team+" "+lbl, pos}));
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [myName, setMyName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [game, setGame] = useState(null);
+  const [currentGame, setCurrentGame] = useState(null); // live game anyone can see
   const [teamSheet, setTeamSheet] = useState(null);
   const [loadingSheet, setLoadingSheet] = useState(false);
   const [sheetTab, setSheetTab] = useState("home");
   const [err, setErr] = useState("");
   const [modal, setModal] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Session restore on load
+  // On load: check for saved session OR fetch current game
   useEffect(() => {
-    async function restore() {
+    async function init() {
+      // Try restore session first
       try {
         const raw = localStorage.getItem("ff");
-        if (!raw) return;
-        const s = JSON.parse(raw);
-        if (!s || !s.gameId || !s.myName) return;
-        const d = await api({ action:"get", gameId:s.gameId });
-        if (!d || !d.game || !Array.isArray(d.game.players)) return;
-        setGame(d.game);
-        setMyName(s.myName);
-        setIsAdmin(s.isAdmin || false);
-        if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
-        else if (d.game.status === "results") setScreen("results");
-        else setScreen("lobby");
-      } catch(e) {
-        try { localStorage.removeItem("ff"); } catch {}
-      }
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s && s.gameId && s.myName) {
+            const d = await api({action:"get", gameId:s.gameId});
+            if (d && d.game && Array.isArray(d.game.players)) {
+              setGame(d.game);
+              setMyName(s.myName);
+              setIsAdmin(s.isAdmin || false);
+              if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
+              else if (d.game.status === "results") setScreen("results");
+              else setScreen("lobby");
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      } catch(e) { try { localStorage.removeItem("ff"); } catch {} }
+
+      // No session - fetch current game so people can see and join
+      try {
+        const d = await api({action:"getCurrent"});
+        if (d && d.game && Array.isArray(d.game.players)) {
+          setCurrentGame(d.game);
+        }
+      } catch {}
+      setLoading(false);
     }
-    restore();
+    init();
   }, []);
 
   // Save session
@@ -226,89 +230,94 @@ export default function App() {
     if (!game || screen === "home") return;
     const t = setInterval(async () => {
       try {
-        const d = await api({ action:"get", gameId:game.id });
+        const d = await api({action:"get", gameId:game.id});
         if (d && d.game && Array.isArray(d.game.players)) {
           setGame(d.game);
           if (d.game.winner) setScreen("results");
-          else if (d.game.status === "picking" && screen === "lobby") { setScreen("picking"); if (!teamSheet) loadSheet(d.game.match); }
-          else if (d.game.status === "results") setScreen("results");
+          else if (d.game.status === "picking" && screen === "lobby") {
+            setScreen("picking");
+            if (!teamSheet) loadSheet(d.game.match);
+          } else if (d.game.status === "results") setScreen("results");
         }
       } catch {}
     }, 5000);
     return () => clearInterval(t);
   }, [game, screen, teamSheet]);
 
+  // Poll home screen for new games every 10s
+  useEffect(() => {
+    if (screen !== "home") return;
+    const t = setInterval(async () => {
+      try {
+        const d = await api({action:"getCurrent"});
+        if (d && d.game && Array.isArray(d.game.players)) setCurrentGame(d.game);
+        else setCurrentGame(null);
+      } catch {}
+    }, 10000);
+    return () => clearInterval(t);
+  }, [screen]);
+
   async function loadSheet(match) {
     if (!match) return;
     setLoadingSheet(true);
     setTeamSheet(null);
     try {
-      const prompt = "Search for expected lineup for " + match.home + " vs " + match.away + " Premier League 2025-26. Return ONLY a JSON array, no markdown: [{\"team\":\"" + match.home + "\",\"colour\":\"#e63946\",\"players\":[{\"number\":1,\"name\":\"Real Player\",\"pos\":\"GK\"}]},{\"team\":\"" + match.away + "\",\"colour\":\"#4361ee\",\"players\":[{\"number\":1,\"name\":\"Real Player\",\"pos\":\"GK\"}]}]. 11 starters + 5 subs each. pos: GK DEF MID FWD only.";
-      const d = await aiCall({ model:"claude-sonnet-4-20250514", max_tokens:2000, tools:[{type:"web_search_20250305",name:"web_search"}], messages:[{role:"user",content:prompt}] });
+      const prompt = "Search for expected lineup for " + match.home + " vs " + match.away +
+        " Premier League 2025-26. Return ONLY a JSON array, no markdown: " +
+        '[{"team":"' + match.home + '","colour":"#e63946","players":[{"number":1,"name":"Real Player","pos":"GK"}]},' +
+        '{"team":"' + match.away + '","colour":"#4361ee","players":[{"number":1,"name":"Real Player","pos":"GK"}]}]' +
+        ". 11 starters + 5 subs each. pos: GK DEF MID FWD only.";
+      const d = await aiCall({
+        model:"claude-sonnet-4-20250514", max_tokens:2000,
+        tools:[{type:"web_search_20250305",name:"web_search"}],
+        messages:[{role:"user",content:prompt}]
+      });
       const txt = (d.content||[]).map(b=>b.text||"").join(" ");
       const s = txt.indexOf("["), e = txt.lastIndexOf("]");
-      if (s < 0 || e <= s) throw new Error("no json");
-      const r = JSON.parse(txt.slice(s, e+1));
-      if (r[0]?.players?.length && r[1]?.players?.length) {
-        setTeamSheet({home:r[0], away:r[1]});
-        setSheetTab("home");
-        return;
+      if (s >= 0 && e > s) {
+        const r = JSON.parse(txt.slice(s,e+1));
+        if (r[0]?.players?.length && r[1]?.players?.length) {
+          setTeamSheet({home:r[0], away:r[1]});
+          setSheetTab("home");
+          setLoadingSheet(false);
+          return;
+        }
       }
-      throw new Error("bad data");
-    } catch {
-      setTeamSheet({ home:{team:match.home,colour:"#e63946",players:fallback(match.home,"home")}, away:{team:match.away,colour:"#4361ee",players:fallback(match.away,"away")} });
-    }
+    } catch {}
+    setTeamSheet({
+      home:{team:match.home, colour:"#e63946", players:fallback(match.home,"home")},
+      away:{team:match.away, colour:"#4361ee", players:fallback(match.away,"away")}
+    });
     setLoadingSheet(false);
   }
 
   function leave() {
     try { localStorage.removeItem("ff"); } catch {}
-    setGame(null); setMyName(""); setIsAdmin(false); setScreen("home");
-    setTeamSheet(null); setErr("");
+    setGame(null); setMyName(""); setIsAdmin(false);
+    setScreen("home"); setTeamSheet(null); setErr("");
     try { window.history.pushState({},"","/"); } catch {}
+    // Refresh current game
+    api({action:"getCurrent"}).then(d => {
+      if (d && d.game && Array.isArray(d.game.players)) setCurrentGame(d.game);
+    }).catch(()=>{});
   }
 
-  // ── SCREENS ───────────────────────────────────────────────────────────
+  // ── HOME SCREEN ─────────────────────────────────────────────────────
   function HomeScreen() {
-    const [mode, setMode] = useState(null);
     const [name, setName] = useState("");
-    const [joinCode, setJoinCode] = useState("");   // for joining
-    const [gameName, setGameName] = useState("");   // for creating
-    const [rejoinCode, setRejoinCode] = useState(""); // for rejoining
     const [busy, setBusy] = useState(false);
+    const [showCreate, setShowCreate] = useState(false);
 
-    // Auto-detect URL game code - only sets join code
-    useEffect(() => {
-      const p = new URLSearchParams(window.location.search).get("game");
-      if (p) { setJoinCode(p.toUpperCase()); setMode("join"); }
-    }, []);
-
-    async function doCreate() {
-      if (!name.trim() || !gameName.trim()) return;
-      setBusy(true); setErr("");
-      const gameId = gameName.trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,12);
-      if (!gameId) { setErr("Please enter a game name"); setBusy(false); return; }
-      try {
-        setMyName(name.trim());
-        setIsAdmin(true);
-        sessionStorage.setItem("pendingGameId", gameId);
-        setScreen("pickMatch");
-      } catch(e) { setErr(e.message); }
-      setBusy(false);
-    }
-
-    async function doJoin(asAdmin) {
-      const code = asAdmin ? rejoinCode : joinCode;
-      if (!name.trim() || !code.trim()) return;
+    async function joinCurrent() {
+      if (!name.trim() || !currentGame) return;
       setBusy(true); setErr("");
       try {
-        const d = await api({ action:"join", gameId:code.trim().toUpperCase(), playerName:name.trim() });
-        if (!d) { setErr("No response from server"); setBusy(false); return; }
+        const d = await api({action:"join", gameId:currentGame.id, playerName:name.trim()});
+        if (!d || !d.game || !Array.isArray(d.game.players)) { setErr("Failed to join. Try again."); setBusy(false); return; }
         if (d.error) { setErr(d.error); setBusy(false); return; }
-        if (!d.game || !Array.isArray(d.game.players)) { setErr("Invalid game data received"); setBusy(false); return; }
         setGame(d.game);
         setMyName(name.trim());
-        setIsAdmin(asAdmin || d.game.adminName === name.trim());
+        setIsAdmin(d.game.adminName === name.trim());
         if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
         else if (d.game.status === "results") setScreen("results");
         else setScreen("lobby");
@@ -316,133 +325,135 @@ export default function App() {
       setBusy(false);
     }
 
-    if (!mode) return (
-      <div className="con">
-        <div style={{textAlign:"center",padding:"20px 0 28px"}}>
-          <div style={{fontSize:52,marginBottom:12}}>⚽</div>
-          <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--muted)",letterSpacing:3,textTransform:"uppercase"}}>How do you want to play?</div>
-        </div>
-        <div className="home-opt" onClick={() => setMode("create")}>
-          <div className="home-opt-icon">🏆</div>
-          <div><div className="home-opt-title">Create Game</div><div className="home-opt-sub">Set up a new sweepstake and invite friends</div></div>
-        </div>
-        <div className="home-opt" onClick={() => setMode("join")}>
-          <div className="home-opt-icon">🔗</div>
-          <div><div className="home-opt-title">Join Game</div><div className="home-opt-sub">Open a WhatsApp link or enter a game code</div></div>
-        </div>
-        <div className="home-opt" onClick={() => setMode("rejoin")} style={{borderColor:"#c9a22740",background:"#c9a22710"}}>
-          <div className="home-opt-icon">🔑</div>
-          <div><div className="home-opt-title" style={{color:"#c9a227"}}>Rejoin as Admin</div><div className="home-opt-sub">Get back into your game as the organiser</div></div>
-        </div>
-      </div>
+    if (loading) return (
+      <div className="con"><div className="loading"><div className="spin"/><p>Loading…</p></div></div>
     );
 
     return (
       <div className="con">
-        {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={() => setErr("")}>✕</span></div>}
-        <div className="card hi">
-          <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:900,textTransform:"uppercase",marginBottom:18,color:"var(--red)"}}>
-            {mode==="create" ? "🏆 Create Game" : mode==="rejoin" ? "🔑 Rejoin as Admin" : "🔗 Join Game"}
-          </div>
+        {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={()=>setErr("")}>✕</span></div>}
 
-          <div className="lbl">Your Name</div>
-          <input className="inp" placeholder="Enter your name…" value={name} onChange={e=>setName(e.target.value)} autoFocus />
-
-          {mode === "create" && (
-            <>
-              <div className="lbl">Game Name <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11}}>(letters & numbers, e.g. TODDSGANG)</span></div>
-              <input className="inp" placeholder="e.g. TODDSGANG" value={gameName}
-                onChange={e=>setGameName(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} maxLength={12} autoComplete="off" />
-              <div style={{fontSize:11,color:"var(--muted)",marginBottom:10,marginTop:-6}}>This is the code your friends use to join — pick something memorable!</div>
-              <button className="btn btn-r" disabled={!name.trim()||!gameName.trim()||busy} onClick={doCreate}>
-                {busy ? "Creating…" : "Next: Pick Match →"}
-              </button>
-            </>
-          )}
-
-          {mode === "join" && (
-            <>
-              {!joinCode && (
-                <>
-                  <div className="lbl">Game Code</div>
-                  <input className="inp" placeholder="e.g. TODDSGANG" value={joinCode}
-                    onChange={e=>setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} autoComplete="off" />
-                </>
-              )}
-              {joinCode && <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>Joining: <strong style={{color:"var(--text)"}}>{joinCode}</strong></div>}
-              <button className="btn btn-r" disabled={!name.trim()||!joinCode.trim()||busy} onClick={() => doJoin(false)}>
+        {/* Live game to join */}
+        {currentGame && currentGame.status !== "results" && (
+          <>
+            <div className="lbl">Live Game — Tap to Join</div>
+            <div className="live-game">
+              <div className="live-badge"><div className="live-dot"/>Live Now</div>
+              <div style={{fontFamily:"var(--fh)",fontSize:"clamp(16px,4vw,22px)",fontWeight:900,textTransform:"uppercase",lineHeight:1.1,marginBottom:8}}>
+                {currentGame.match?.home} <span style={{color:"var(--muted)"}}>vs</span> {currentGame.match?.away}
+              </div>
+              <div style={{color:"var(--muted)",fontSize:13,marginBottom:14}}>
+                {currentGame.match?.date} · {currentGame.match?.time} · {currentGame.players?.length || 0} players in · £{currentGame.players?.length || 0} pot
+              </div>
+              <div className="lbl" style={{marginBottom:8}}>Your Name</div>
+              <input className="inp" placeholder="Enter your name to join…" value={name}
+                onChange={e=>setName(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&joinCurrent()} autoFocus />
+              <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}>
                 {busy ? "Joining…" : "Join Game →"}
               </button>
-            </>
-          )}
+            </div>
+          </>
+        )}
 
-          {mode === "rejoin" && (
-            <>
-              <div className="lbl">Game Name</div>
-              <input className="inp" placeholder="e.g. TODDSGANG" value={rejoinCode}
-                onChange={e=>setRejoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,""))} autoComplete="off" />
-              <div style={{fontSize:11,color:"var(--muted)",marginBottom:10,marginTop:-6}}>Enter the game name you chose when you created it</div>
-              <button className="btn btn-gold" disabled={!name.trim()||!rejoinCode.trim()||busy} onClick={() => doJoin(true)}>
-                {busy ? "Rejoining…" : "🔑 Rejoin as Admin →"}
-              </button>
-            </>
-          )}
+        {/* No live game */}
+        {!currentGame && (
+          <div style={{textAlign:"center",padding:"40px 20px"}}>
+            <div style={{fontSize:48,marginBottom:12}}>⚽</div>
+            <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Game</div>
+            <div style={{color:"var(--muted)",fontSize:14,marginBottom:24}}>Ask your organiser to create a game, then refresh this page</div>
+          </div>
+        )}
 
-          <button className="btn btn-g" onClick={() => { setMode(null); setJoinCode(""); setGameName(""); setRejoinCode(""); setErr(""); try{window.history.pushState({},"","/")}catch{} }}>← Back</button>
-        </div>
+        {/* Admin: create game */}
+        {!showCreate ? (
+          <div style={{textAlign:"center",marginTop:8}}>
+            <span style={{fontSize:13,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowCreate(true)}>
+              Are you the organiser? Create a game
+            </span>
+          </div>
+        ) : (
+          <CreateGameForm onDone={() => setShowCreate(false)} />
+        )}
       </div>
     );
   }
 
-  function PickMatchScreen() {
+  // ── CREATE GAME FORM ────────────────────────────────────────────────
+  function CreateGameForm({ onDone }) {
+    const [adminName, setAdminName] = useState("");
     const [sel, setSel] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [step, setStep] = useState(1); // 1=name, 2=match
 
-    async function confirm() {
-      if (sel === null) return;
+    async function create() {
+      if (!adminName.trim() || sel === null) return;
       setBusy(true); setErr("");
+      const gameId = uid();
       const match = FIXTURES[sel];
-      const gameId = (sessionStorage.getItem("pendingGameId") || uid()).toUpperCase();
       try {
-        const d = await api({ action:"create", gameId, adminName:myName, match });
-        if (d.error) { setErr(d.error); setBusy(false); return; }
-        sessionStorage.removeItem("pendingGameId");
+        const d = await api({action:"create", gameId, adminName:adminName.trim(), match});
+        if (!d || !d.game) { setErr("Failed to create game"); setBusy(false); return; }
         setGame(d.game);
+        setMyName(adminName.trim());
+        setIsAdmin(true);
+        setCurrentGame(d.game);
         setScreen("lobby");
-        try { window.history.pushState({}, "", "?game=" + gameId); } catch {}
-      } catch(e) { setErr(e.message); }
+      } catch(e) { setErr(e.message || "Error creating game"); }
       setBusy(false);
     }
 
     return (
-      <div className="con">
-        <div className="lbl">Select a Match</div>
-        {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={()=>setErr("")}>✕</span></div>}
-        {FIXTURES.map((m,i) => {
-          const av = avail(m);
-          return (
-            <div key={i} className={"match-card"+(sel===i?" sel":"")} onClick={()=>setSel(i)}>
-              <div style={{flex:1}}>
-                <div className="match-vs">{m.home} <span style={{color:"var(--muted)"}}>vs</span> {m.away}</div>
-                <div className="match-dt">{m.date} · {m.time}</div>
-              </div>
-              <div className={"avail "+av.cls}><div className="av-dot"/>{av.label}</div>
-              {sel===i && <span style={{color:"var(--red)",fontSize:18,fontWeight:900}}>✓</span>}
-            </div>
-          );
-        })}
-        <div className="two">
-          <button className="btn btn-g" onClick={() => { sessionStorage.removeItem("pendingGameId"); setScreen("home"); }}>← Back</button>
-          <button className="btn btn-r" disabled={sel===null||busy} onClick={confirm}>{busy?"Creating…":"Create Game →"}</button>
+      <div className="card hi" style={{marginTop:16}}>
+        <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",color:"var(--red)",marginBottom:16}}>
+          🏆 Create a Game
         </div>
+
+        {step === 1 && (
+          <>
+            <div className="lbl">Your Name</div>
+            <input className="inp" placeholder="Enter your name…" value={adminName}
+              onChange={e=>setAdminName(e.target.value)} autoFocus />
+            <button className="btn btn-r" disabled={!adminName.trim()} onClick={()=>setStep(2)}>
+              Next: Pick Match →
+            </button>
+            <button className="btn btn-g" onClick={onDone}>← Cancel</button>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <div className="lbl">Select a Match</div>
+            {FIXTURES.map((m,i) => {
+              const av = avail(m);
+              return (
+                <div key={i} className={"match-card"+(sel===i?" sel":"")} onClick={()=>setSel(i)}>
+                  <div style={{flex:1}}>
+                    <div className="match-vs">{m.home} <span style={{color:"var(--muted)"}}>vs</span> {m.away}</div>
+                    <div className="match-dt">{m.date} · {m.time}</div>
+                  </div>
+                  <div className={"avail "+av.cls}><div className="av-dot"/>{av.label}</div>
+                  {sel===i&&<span style={{color:"var(--red)",fontSize:18,fontWeight:900}}>✓</span>}
+                </div>
+              );
+            })}
+            <div className="two">
+              <button className="btn btn-g" onClick={()=>setStep(1)}>← Back</button>
+              <button className="btn btn-r" disabled={sel===null||busy} onClick={create}>
+                {busy?"Creating…":"Create Game →"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }
 
+  // ── LOBBY ───────────────────────────────────────────────────────────
   function LobbyScreen() {
     const [copied, setCopied] = useState(false);
-    const link = window.location.origin + "?game=" + game.id;
-    const players = game.players || [];
+    const players = game?.players || [];
+    const link = window.location.origin;
 
     function copy() {
       try { navigator.clipboard.writeText(link); } catch {}
@@ -451,13 +462,16 @@ export default function App() {
 
     async function startPicking() {
       try {
-        const d = await api({ action:"startPicking", gameId:game.id });
-        if (d.game) { setGame(d.game); setScreen("picking"); loadSheet(game.match); }
+        const d = await api({action:"startPicking", gameId:game.id});
+        if (d && d.game) { setGame(d.game); setScreen("picking"); loadSheet(game.match); }
       } catch(e) { setErr(e.message); }
     }
 
     async function refresh() {
-      try { const d = await api({action:"get",gameId:game.id}); if(d.game)setGame(d.game); } catch {}
+      try {
+        const d = await api({action:"get", gameId:game.id});
+        if (d && d.game && Array.isArray(d.game.players)) setGame(d.game);
+      } catch {}
     }
 
     return (
@@ -470,10 +484,11 @@ export default function App() {
           <div style={{color:"var(--muted)",fontSize:13,marginTop:6}}>{game.match?.date} · {game.match?.time}</div>
         </div>
 
-        <div className="lbl">Game Code — share this with your friends</div>
-        <div className="gamecode">{game.id}</div>
+        <div className="lbl">Invite Friends — Share This Link</div>
         <div className="share-box" onClick={copy}>{copied?"✓ Copied!":link}</div>
-        <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:16}}>Tap to copy · Or share the link above on WhatsApp</div>
+        <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:16}}>
+          Friends just open the link, enter their name and tap Join
+        </div>
 
         <div className="stats">
           <div className="stat"><div className="stat-v">{players.length}</div><div className="stat-l">Players</div></div>
@@ -487,24 +502,25 @@ export default function App() {
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <span style={{color:COLS[i%COLS.length],fontSize:18}}>●</span>
               <span style={{fontWeight:600}}>{p.name}</span>
-              {p.name===myName && <span className="badge">You</span>}
-              {p.name===game.adminName && <span style={{fontSize:11,color:"var(--red)",fontFamily:"var(--fh)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginLeft:4}}>Admin</span>}
+              {p.name===myName&&<span className="badge">You</span>}
+              {p.name===game.adminName&&<span style={{fontSize:11,color:"var(--red)",fontFamily:"var(--fh)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginLeft:4}}>Admin</span>}
             </div>
             <span style={{fontSize:12,color:p.pick?"#00e676":"var(--muted)"}}>{p.pick?"✓ Picked":"Waiting"}</span>
           </div>
         ))}
 
         <div className="two" style={{marginTop:16}}>
-          <button className="btn btn-g" onClick={refresh}>↻ Refresh</button>
+          <button className="btn btn-g btn-sm" onClick={refresh}>↻ Refresh</button>
           {isAdmin
-            ? <button className="btn btn-r" onClick={startPicking} disabled={players.length<1}>Open Picks →</button>
-            : <div style={{flex:1,fontSize:13,color:"var(--muted)",textAlign:"center",padding:"13px 0"}}>Waiting for admin to open picks…</div>
+            ? <button className="btn btn-r" style={{flex:1,marginTop:0}} onClick={startPicking}>Open Picks →</button>
+            : <div style={{flex:1,fontSize:13,color:"var(--muted)",textAlign:"center",padding:"10px 0"}}>Waiting for admin…</div>
           }
         </div>
       </div>
     );
   }
 
+  // ── PICKING ─────────────────────────────────────────────────────────
   function PickingScreen() {
     const players = game?.players || [];
     const myPlayer = players.find(p=>p.name===myName);
@@ -513,7 +529,7 @@ export default function App() {
     if (myPlayer?.pick) return (
       <div className="con">
         <div className="ok">✅ Your pick: <strong>{myPlayer.pick.name}</strong> — Good luck!</div>
-        <div className="lbl">All Picks So Far</div>
+        <div className="lbl">All Picks</div>
         <div className="card">
           {players.map((p,i) => (
             <div key={i} className="pick-row">
@@ -537,7 +553,7 @@ export default function App() {
 
     return (
       <div className="con">
-        <div className="notice">⚽ <strong>{myName}</strong> — tap a player to make your pick</div>
+        <div className="notice">⚽ <strong>{myName}</strong> — tap a player to pick your First Goal Scorer</div>
         {loadingSheet ? (
           <div className="loading"><div className="spin"/><p>Loading team sheets…</p></div>
         ) : teamSheet ? (
@@ -572,13 +588,14 @@ export default function App() {
     );
   }
 
+  // ── RESULTS ─────────────────────────────────────────────────────────
   function ResultsScreen() {
     const players = game?.players || [];
 
     async function declareWinner(player) {
       try {
-        const d = await api({action:"declareWinner",gameId:game.id,winnerName:player.name});
-        if (d.game) setGame(d.game);
+        const d = await api({action:"declareWinner", gameId:game.id, winnerName:player.name});
+        if (d && d.game) setGame(d.game);
       } catch(e) { setErr(e.message); }
     }
 
@@ -587,7 +604,9 @@ export default function App() {
         <div className="winner-wrap">
           <span className="trophy">🏆</span>
           <div className="winner-name">{game.winner.name}</div>
-          <div style={{color:"var(--muted)",fontSize:15,margin:"10px 0 20px"}}>picked <strong style={{color:"#fff"}}>{game.winner.pick?.name}</strong> — First Goal Scorer!</div>
+          <div style={{color:"var(--muted)",fontSize:15,margin:"10px 0 20px"}}>
+            picked <strong style={{color:"#fff"}}>{game.winner.pick?.name}</strong> — First Goal Scorer!
+          </div>
           <div className="pot">£{players.length}</div>
           <div style={{color:"var(--muted)",fontSize:12,marginTop:6}}>Winner takes all 🎉</div>
         </div>
@@ -596,7 +615,7 @@ export default function App() {
 
     return (
       <div className="con">
-        <div className="lbl">All Picks — tap Winner when first goal goes in</div>
+        <div className="lbl">All Picks</div>
         <div className="stats">
           <div className="stat"><div className="stat-v">{players.filter(p=>p.pick).length}/{players.length}</div><div className="stat-l">Picked</div></div>
           <div className="stat"><div className="pot" style={{fontSize:32}}>£{players.length}</div><div className="stat-l">Prize Pot</div></div>
@@ -608,22 +627,24 @@ export default function App() {
                 <span style={{color:COLS[i%COLS.length],fontSize:16}}>●</span>
                 <div>
                   <div style={{fontWeight:600}}>{p.name}{p.name===myName&&<span className="badge">You</span>}</div>
-                  <div style={{fontSize:13,color:p.pick?"#00e676":"var(--muted)",marginTop:2}}>{p.pick?"⚽ "+p.pick.name+" ("+p.pick.pos+")":"No pick"}</div>
+                  <div style={{fontSize:13,color:p.pick?"#00e676":"var(--muted)",marginTop:2}}>
+                    {p.pick?"⚽ "+p.pick.name+" ("+p.pick.pos+")":"No pick"}
+                  </div>
                 </div>
               </div>
-              {isAdmin&&p.pick&&(
-                <button className="btn btn-gold" style={{width:"auto",marginTop:0,padding:"7px 14px",fontSize:13}}
-                  onClick={()=>declareWinner(p)}>🏆 Winner!</button>
+              {isAdmin&&p.pick&&!game.winner&&(
+                <button className="btn btn-gold btn-sm" onClick={()=>declareWinner(p)}>🏆 Winner!</button>
               )}
             </div>
           ))}
         </div>
         {!isAdmin&&<div style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginTop:8}}>Waiting for the first goal… ⚽</div>}
+        {isAdmin&&<div style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginTop:8}}>Tap Winner! when the first goal goes in</div>}
       </div>
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────
+  // ── RENDER ──────────────────────────────────────────────────────────
   return (
     <div className="app">
       <div className="header">
@@ -635,9 +656,9 @@ export default function App() {
 
       {game && (
         <div className="game-bar">
-          <span>Game: <strong>{game.id}</strong></span>
+          <span>{game.match?.home} vs {game.match?.away}</span>
           <span>·</span>
-          <span>{myName}{isAdmin?" (Admin)":""}</span>
+          <strong>{myName}{isAdmin?" (Admin)":""}</strong>
           <span className="leave" onClick={leave}>✕ Leave</span>
         </div>
       )}
@@ -649,7 +670,6 @@ export default function App() {
       )}
 
       {screen==="home" && <HomeScreen/>}
-      {screen==="pickMatch" && <PickMatchScreen/>}
       {screen==="lobby" && game && <LobbyScreen/>}
       {screen==="picking" && game && <PickingScreen/>}
       {screen==="results" && game && <ResultsScreen/>}
@@ -665,10 +685,13 @@ export default function App() {
               <button className="btn btn-g" style={{marginTop:0}} onClick={()=>setModal(null)}>Cancel</button>
               <button className="btn btn-r" style={{marginTop:0}} onClick={async()=>{
                 try {
-                  const d = await api({action:"pick",gameId:game.id,playerName:myName,pick:modal});
-                  if(d.error){setErr(d.error);}
-                  else if(d.game){setGame(d.game);if(d.game.status==="results")setScreen("results");}
-                } catch(e){setErr(e.message);}
+                  const d = await api({action:"pick", gameId:game.id, playerName:myName, pick:modal});
+                  if (d.error) { setErr(d.error); }
+                  else if (d.game && Array.isArray(d.game.players)) {
+                    setGame(d.game);
+                    if (d.game.status==="results") setScreen("results");
+                  }
+                } catch(e) { setErr(e.message); }
                 setModal(null);
               }}>Lock It In ✓</button>
             </div>

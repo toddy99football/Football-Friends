@@ -325,56 +325,58 @@ export default function App() {
       setBusy(false);
     }
 
-    if (loading) return (
-      <div className="con"><div className="loading"><div className="spin"/><p>Loading…</p></div></div>
-    );
-
     return (
       <div className="con">
         {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={()=>setErr("")}>✕</span></div>}
 
-        {/* Live game to join */}
-        {currentGame && currentGame.status !== "results" && (
+        {/* Always show name input at top */}
+        {!showCreate && (
           <>
-            <div className="lbl">Live Game — Tap to Join</div>
-            <div className="live-game">
-              <div className="live-badge"><div className="live-dot"/>Live Now</div>
-              <div style={{fontFamily:"var(--fh)",fontSize:"clamp(16px,4vw,22px)",fontWeight:900,textTransform:"uppercase",lineHeight:1.1,marginBottom:8}}>
-                {currentGame.match?.home} <span style={{color:"var(--muted)"}}>vs</span> {currentGame.match?.away}
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:40,marginBottom:8}}>⚽</div>
+            </div>
+
+            {/* Live game card */}
+            {loading ? (
+              <div className="loading"><div className="spin"/><p>Checking for live games…</p></div>
+            ) : currentGame && currentGame.status !== "results" ? (
+              <>
+                <div className="live-badge" style={{marginBottom:10}}><div className="live-dot"/>Live Game</div>
+                <div className="live-game" style={{cursor:"default"}}>
+                  <div style={{fontFamily:"var(--fh)",fontSize:"clamp(16px,4vw,22px)",fontWeight:900,textTransform:"uppercase",lineHeight:1.1,marginBottom:6}}>
+                    {currentGame.match?.home} <span style={{color:"var(--muted)"}}>vs</span> {currentGame.match?.away}
+                  </div>
+                  <div style={{color:"var(--muted)",fontSize:13,marginBottom:16}}>
+                    {currentGame.match?.date} · {currentGame.match?.time} · {currentGame.players?.length || 0} players · £{currentGame.players?.length || 0} pot
+                  </div>
+                  <div className="lbl">Your Name</div>
+                  <input className="inp" placeholder="Enter your name…" value={name}
+                    onChange={e=>setName(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinCurrent()} autoFocus />
+                  <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}>
+                    {busy ? "Joining…" : "Join Game →"}
+                  </button>
+                </div>
+              </>
+            ) : !loading ? (
+              <div style={{textAlign:"center",padding:"30px 20px"}}>
+                <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Game</div>
+                <div style={{color:"var(--muted)",fontSize:14}}>Ask your organiser to create a game, then refresh</div>
+                <button className="btn btn-g" style={{marginTop:16,width:"auto",padding:"10px 20px",fontSize:14}} onClick={async()=>{
+                  try { const d = await api({action:"getCurrent"}); if(d&&d.game&&Array.isArray(d.game.players))setCurrentGame(d.game); else setCurrentGame(null); } catch{}
+                }}>↻ Refresh</button>
               </div>
-              <div style={{color:"var(--muted)",fontSize:13,marginBottom:14}}>
-                {currentGame.match?.date} · {currentGame.match?.time} · {currentGame.players?.length || 0} players in · £{currentGame.players?.length || 0} pot
-              </div>
-              <div className="lbl" style={{marginBottom:8}}>Your Name</div>
-              <input className="inp" placeholder="Enter your name to join…" value={name}
-                onChange={e=>setName(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&joinCurrent()} autoFocus />
-              <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}>
-                {busy ? "Joining…" : "Join Game →"}
-              </button>
+            ) : null}
+
+            <div style={{textAlign:"center",marginTop:16}}>
+              <span style={{fontSize:13,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowCreate(true)}>
+                Are you the organiser? Create a game
+              </span>
             </div>
           </>
         )}
 
-        {/* No live game */}
-        {!currentGame && (
-          <div style={{textAlign:"center",padding:"40px 20px"}}>
-            <div style={{fontSize:48,marginBottom:12}}>⚽</div>
-            <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Game</div>
-            <div style={{color:"var(--muted)",fontSize:14,marginBottom:24}}>Ask your organiser to create a game, then refresh this page</div>
-          </div>
-        )}
-
-        {/* Admin: create game */}
-        {!showCreate ? (
-          <div style={{textAlign:"center",marginTop:8}}>
-            <span style={{fontSize:13,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}} onClick={()=>setShowCreate(true)}>
-              Are you the organiser? Create a game
-            </span>
-          </div>
-        ) : (
-          <CreateGameForm onDone={() => setShowCreate(false)} />
-        )}
+        {showCreate && <CreateGameForm onDone={() => setShowCreate(false)} />}
       </div>
     );
   }

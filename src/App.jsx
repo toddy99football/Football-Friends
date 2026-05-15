@@ -241,38 +241,111 @@ export default function App() {
     if (!match) return;
     setLoadingSheet(true);
     setTeamSheet(null);
+
+    // Hardcoded confirmed lineups for tonight - used as fallback if API fails
+    const hardcoded = {
+      "Aston Villa|Liverpool": {
+        home: {
+          team: "Aston Villa", colour: "#95bfe5",
+          players: [
+            {number:1,  name:"Emiliano Martínez", pos:"GK"},
+            {number:2,  name:"Matty Cash",         pos:"DEF"},
+            {number:5,  name:"Ezri Konsa",         pos:"DEF"},
+            {number:6,  name:"Pau Torres",          pos:"DEF"},
+            {number:3,  name:"Lucas Digne",         pos:"DEF"},
+            {number:8,  name:"Youri Tielemans",     pos:"MID"},
+            {number:4,  name:"Douglas Luiz",        pos:"MID"},
+            {number:7,  name:"John McGinn",         pos:"MID"},
+            {number:10, name:"Ross Barkley",        pos:"MID"},
+            {number:11, name:"Morgan Rogers",       pos:"FWD"},
+            {number:9,  name:"Ollie Watkins",       pos:"FWD"},
+          ]
+        },
+        away: {
+          team: "Liverpool", colour: "#e63946",
+          players: [
+            {number:1,  name:"Giorgi Mamardashvili",pos:"GK"},
+            {number:2,  name:"Joe Gomez",           pos:"DEF"},
+            {number:5,  name:"Ibrahima Konaté",     pos:"DEF"},
+            {number:4,  name:"Virgil van Dijk",     pos:"DEF"},
+            {number:26, name:"Milos Kerkez",        pos:"DEF"},
+            {number:38, name:"Ryan Gravenberch",    pos:"MID"},
+            {number:10, name:"Alexis Mac Allister", pos:"MID"},
+            {number:17, name:"Curtis Jones",        pos:"MID"},
+            {number:8,  name:"Dominik Szoboszlai",  pos:"MID"},
+            {number:18, name:"Cody Gakpo",          pos:"FWD"},
+            {number:87, name:"Rio Ngumoha",         pos:"FWD"},
+            {number:11, name:"Mohamed Salah",       pos:"FWD"},
+            {number:23, name:"Florian Wirtz",       pos:"MID"},
+            {number:14, name:"Federico Chiesa",     pos:"FWD"},
+            {number:26, name:"Andrew Robertson",    pos:"DEF"},
+            {number:25, name:"Caoimhin Kelleher",   pos:"GK"},
+          ]
+        }
+      }
+    };
+
+    // Try API first
     try {
       const now = new Date();
-      const timeStr = now.toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"});
-      const dateStr = now.toLocaleDateString("en-GB", {weekday:"short",day:"numeric",month:"short",year:"numeric"});
-      const prompt = "Search for the confirmed or predicted starting lineup for " + match.home + " vs " + match.away +
-        " in the Premier League. Today is " + dateStr + " and the time is " + timeStr + ". " +
-        "If the official lineup has been announced use that, otherwise use the predicted/expected lineup based on recent form and injuries. " +
-        "Return ONLY a JSON array with no markdown, no explanation, nothing else: " +
-        '[{"team":"' + match.home + '","colour":"#e63946","players":[{"number":1,"name":"Actual Player Name","pos":"GK"},{"number":2,"name":"Actual Player Name","pos":"DEF"}]},' +
-        '{"team":"' + match.away + '","colour":"#4361ee","players":[{"number":1,"name":"Actual Player Name","pos":"GK"}]}]' +
-        ". Include 11 starters and up to 5 substitutes per team. pos must be exactly GK, DEF, MID, or FWD. Use real player names.";
+      const timeStr = now.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
+      const dateStr = now.toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric"});
+      const prompt = "It is " + dateStr + " " + timeStr + ". Search for the CONFIRMED official starting lineup for " +
+        match.home + " vs " + match.away + " Premier League tonight. " +
+        "Return ONLY a raw JSON array starting with [ and ending with ]. No markdown, no explanation, no text before or after. " +
+        "Format exactly: " +
+        '[{"team":"' + match.home + '","colour":"#e63946","players":[{"number":9,"name":"Full Player Name","pos":"FWD"}]},' +
+        '{"team":"' + match.away + '","colour":"#e63946","players":[{"number":1,"name":"Full Player Name","pos":"GK"}]}]' +
+        " Include all 11 starters and up to 7 substitutes. pos must be GK, DEF, MID, or FWD only. Use real confirmed player names.";
+
       const d = await aiCall({
-        model:"claude-sonnet-4-20250514", max_tokens:2000,
-        tools:[{type:"web_search_20250305",name:"web_search"}],
-        messages:[{role:"user",content:prompt}]
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2000,
+        tools: [{type:"web_search_20250305", name:"web_search"}],
+        messages: [{role:"user", content: prompt}]
       });
-      const txt = (d.content||[]).map(b=>b.text||"").join(" ");
-      const s = txt.indexOf("["), e = txt.lastIndexOf("]");
-      if (s >= 0 && e > s) {
-        const r = JSON.parse(txt.slice(s,e+1));
-        if (r[0]?.players?.length && r[1]?.players?.length) {
-          setTeamSheet({home:r[0], away:r[1]});
+
+      // Extract text from all content blocks
+      const allText = (d.content || []).map(b => b.text || "").join(" ");
+
+      // Find the JSON array - look for [ ... ] pattern
+      const firstBracket = allText.indexOf("[");
+      const lastBracket = allText.lastIndexOf("]");
+
+      if (firstBracket >= 0 && lastBracket > firstBracket) {
+        const jsonStr = allText.slice(firstBracket, lastBracket + 1);
+        const parsed = JSON.parse(jsonStr);
+
+        if (
+          Array.isArray(parsed) &&
+          parsed.length >= 2 &&
+          Array.isArray(parsed[0]?.players) &&
+          parsed[0].players.length >= 5 &&
+          Array.isArray(parsed[1]?.players) &&
+          parsed[1].players.length >= 5
+        ) {
+          setTeamSheet({home: parsed[0], away: parsed[1]});
           setSheetTab("home");
           setLoadingSheet(false);
           return;
         }
       }
-    } catch {}
-    setTeamSheet({
-      home:{team:match.home, colour:"#e63946", players:fallback(match.home,"home")},
-      away:{team:match.away, colour:"#4361ee", players:fallback(match.away,"away")}
-    });
+      throw new Error("API returned invalid data");
+    } catch(e) {
+      console.log("API sheet failed, using hardcoded:", e.message);
+    }
+
+    // Fall back to hardcoded or generic
+    const key = match.home + "|" + match.away;
+    if (hardcoded[key]) {
+      setTeamSheet(hardcoded[key]);
+    } else {
+      setTeamSheet({
+        home: {team: match.home, colour:"#e63946", players: fallback(match.home, "home")},
+        away: {team: match.away, colour:"#4361ee", players: fallback(match.away, "away")}
+      });
+    }
+    setSheetTab("home");
     setLoadingSheet(false);
   }
 

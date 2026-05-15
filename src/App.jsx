@@ -327,7 +327,8 @@ export default function App() {
 
     if (showCreate) return <CreateGameForm onDone={() => setShowCreate(false)} />;
 
-    const hasGame = currentGame && Array.isArray(currentGame.players) && currentGame.status !== "results";
+    const hasGame = currentGame && Array.isArray(currentGame.players);
+    const isPicking = hasGame && currentGame.status === "picking";
     const av = hasGame ? avail(currentGame.match) : null;
 
     return (
@@ -371,15 +372,20 @@ export default function App() {
 
             <div className="card hi">
               <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
-                Join the Sweepstake — £1 Entry
+                {isPicking ? "Picks Are Open!" : "Join Game — £1 Entry"}
               </div>
+              {isPicking && (
+                <div style={{fontSize:13,color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
+                  Picks are underway! Enter your name to rejoin and see who picked what.
+                </div>
+              )}
               <input className="inp" placeholder="Enter your name…" value={name}
                 onChange={e=>setName(e.target.value)}
                 onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinCurrent()}
                 autoFocus style={{fontSize:17,padding:"14px 16px"}} />
               <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}
                 style={{fontSize:19,padding:"15px"}}>
-                {busy ? "Joining…" : "⚽ Join & Pick a Player →"}
+                {busy ? "Loading…" : isPicking ? "⚽ Rejoin Game →" : "⚽ Join & Pick a Player →"}
               </button>
             </div>
 
@@ -404,6 +410,27 @@ export default function App() {
                 Are you the organiser? Create a game
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Results game - show winner or rejoin */}
+        {currentGame && currentGame.status === "results" && (
+          <div className="card hi" style={{marginTop:16}}>
+            <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
+              {currentGame.winner ? "🏆 We Have a Winner!" : "Game Finished"}
+            </div>
+            {currentGame.winner && (
+              <div style={{textAlign:"center",marginBottom:14}}>
+                <div style={{fontFamily:"var(--fh)",fontSize:32,fontWeight:900,color:"var(--amber)"}}>{currentGame.winner.name}</div>
+                <div style={{fontSize:14,color:"var(--muted)",marginTop:4}}>picked {currentGame.winner.pick?.name}</div>
+              </div>
+            )}
+            <input className="inp" placeholder="Enter your name to see full results…" value={name}
+              onChange={e=>setName(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinCurrent()} />
+            <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinCurrent}>
+              {busy ? "Loading…" : "See Full Results →"}
+            </button>
           </div>
         )}
       </div>

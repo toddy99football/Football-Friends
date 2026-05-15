@@ -117,6 +117,16 @@ module.exports = async function handler(req, res) {
         return res.json({ game: game });
       }
 
+      case 'cancel': {
+        const game = await redisGet('game:' + gameId);
+        if (!game) return res.status(404).json({ error: 'Game not found' });
+        game.status = 'cancelled';
+        await redisSet('game:' + game.id, game);
+        // Clear current game pointer
+        await redisSet('current', null);
+        return res.json({ game: game });
+      }
+
       case 'removePlayer': {
         const game = await redisGet('game:' + gameId);
         if (!game) return res.status(404).json({ error: 'Game not found' });

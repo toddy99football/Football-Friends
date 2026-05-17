@@ -367,8 +367,11 @@ export default function App() {
   // ── HOME SCREEN ─────────────────────────────────────────────────────
   function HomeScreen() {
     const [selectedGameId, setSelectedGameId] = useState(null);
-    const [name, setName] = useState(() => { try { return localStorage.getItem("ff_name") || ""; } catch { return ""; } });
+    const [name, setName] = useState("");
     const [joinPassword, setJoinPassword] = useState("");
+    useEffect(() => {
+      try { const saved = localStorage.getItem("ff_name"); if (saved) setName(saved); } catch {}
+    }, []);
     const [busy, setBusy] = useState(false);
 
     const selectedGame = gamesList.find(g => g.id === selectedGameId) || null;

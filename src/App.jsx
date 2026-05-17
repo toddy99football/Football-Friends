@@ -242,6 +242,8 @@ export default function App() {
   const [err, setErr] = useState("");
   const [modal, setModal] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [playerName, setPlayerName] = useState("");
+  const [playerPassword, setPlayerPassword] = useState("");
 
   // On load: load all games
   useEffect(() => {
@@ -271,6 +273,7 @@ export default function App() {
     }
     init();
     try { localStorage.removeItem("ff"); } catch {}
+    try { const n = localStorage.getItem("ff_name"); if(n) setPlayerName(n); } catch {}
   }, []);
 
   // Save session
@@ -367,12 +370,11 @@ export default function App() {
   // ── HOME SCREEN ─────────────────────────────────────────────────────
   function HomeScreen() {
     const [selectedGameId, setSelectedGameId] = useState(null);
-    const [name, setName] = useState("");
-    const [joinPassword, setJoinPassword] = useState("");
-    useEffect(() => {
-      try { const saved = localStorage.getItem("ff_name"); if (saved) setName(saved); } catch {}
-    }, []);
     const [busy, setBusy] = useState(false);
+    const name = playerName;
+    const setName = setPlayerName;
+    const joinPassword = playerPassword;
+    const setJoinPassword = setPlayerPassword;
 
     const selectedGame = gamesList.find(g => g.id === selectedGameId) || null;
     const activeGames = gamesList.filter(g => g.status !== "cancelled");
@@ -385,6 +387,7 @@ export default function App() {
         if (!d || !d.game || !Array.isArray(d.game.players)) { setErr("Failed to join."); setBusy(false); return; }
         if (d.error) { setErr(d.error); setBusy(false); return; }
         try { localStorage.setItem("ff_name", name.trim()); } catch {}
+        setPlayerPassword("");
         setTeamSheet(null); setModal(null);
         setGame(d.game);
         setMyName(name.trim());
@@ -501,7 +504,7 @@ export default function App() {
                   <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,padding:"11px 14px",fontSize:16,fontWeight:600,marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
                     <span style={{color:"var(--red)"}}>●</span>{name}
                     <span style={{fontSize:11,color:"#00e676",marginLeft:"auto",cursor:"pointer"}}
-                      onClick={()=>{ try{localStorage.removeItem("ff_name")}catch{}; setName(""); }}>Change ✓</span>
+                      onClick={()=>{ try{localStorage.removeItem("ff_name")}catch{}; setPlayerName(""); }}>Change ✓</span>
                   </div>
                 ) : (
                   <input className="inp" placeholder="Enter your name…" value={name}

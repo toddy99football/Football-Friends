@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const fl = document.createElement("link");
 fl.rel = "stylesheet";
@@ -229,6 +229,577 @@ function fallback(team, side) {
   return rows.map(([n,pos,lbl]) => ({number:n, name:team+" "+lbl, pos}));
 }
 
+// ── HOME SCREEN ─────────────────────────────────────────────────────
+function HomeScreen({ gamesList, loading, err, setErr, playerName, setPlayerName, playerPassword, setPlayerPassword, setScreen, setGame, setMyName, setIsAdmin, setCurrentGame, setTeamSheet, setModal, loadSheet, COLS, avail }) {
+  const [selectedGameId, setSelectedGameId] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const nameRef = useRef(null);
+  const passRef = useRef(null);
+
+  const selectedGame = gamesList.find(g => g.id === selectedGameId) || null;
+  const activeGames = gamesList.filter(g => g.status !== "cancelled");
+
+  async function joinSelected() {
+    const name = nameRef.current ? nameRef.current.value.trim() : playerName;
+    const pass = passRef.current ? passRef.current.value.trim() : playerPassword;
+    if (!name || !selectedGame) return;
+    setBusy(true); setErr("");
+    try {
+      const d = await fetch("/api/game", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({action:"join", gameId:selectedGame.id, playerName:name, playerPassword:pass})
+      }).then(r=>r.json());
+      if (!d || !d.game || !Array.isArray(d.game.players)) { setErr(d.error||"Failed to join."); setBusy(false); return; }
+      try { localStorage.setItem("ff_name", name); } catch {}
+      setPlayerName(name);
+      setTeamSheet(null); setModal(null);
+      setGame(d.game); setMyName(name);
+      setIsAdmin(d.game.adminName === name);
+      setCurrentGame(d.game);
+      if (d.game.status === "picking") { const screen = "picking"; loadSheet(d.game.match); }
+      else if (d.game.status === "results") { /* setScreen below */ }
+      if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
+      else if (d.game.status === "results") setScreen("results");
+      else setScreen("lobby");
+    } catch(e) { setErr(e.message || "Connection error"); }
+    setBusy(false);
+  }
+
+  async function refresh() {
+    try {
+      const d = await fetch("/api/game", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({action:"listGames"})
+      }).then(r=>r.json());
+      if (d && Array.isArray(d.games)) setCurrentGame(d.games[0] || null);
+    } catch {}
+  }
+
+  function statusLabel(g) {
+    if (g.status === "lobby") return {text:"Open", cls:"av-ok"};
+    if (g.status === "picking") return {text:"Picks Open", cls:"av-soon"};
+    if (g.status === "results") return {text:"Finished", cls:"av-no"};
+    return {text:"Active", cls:"av-ok"};
+  }
+
+  return (
+    <div className="con">
+      {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={()=>setErr("")}>✕</span></div>}
+      <div style={{textAlign:"center",padding:"16px 0 20px"}}>
+        <div style={{fontSize:44,marginBottom:8}}>⚽</div>
+        <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--muted)",letterSpacing:3,textTransform:"uppercase"}}>£1 Entry · Winner Takes All</div>
+      </div>
+
+      {loading ? (
+        <div className="loading"><div className="spin"/><p>Loading games…</p></div>
+      ) : (
+        <>
+          {gamesList.length > 0 ? (
+            <>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div className="lbl" style={{marginBottom:0}}>Select a Game</div>
+                <span style={{fontSize:12,color:"var(--muted)",cursor:"pointer"}} onClick={refresh}>↻ Refresh</span>
+              </div>
+              {gamesList.map((g) => {
+                const av = avail(g.match);
+                const st = statusLabel(g);
+                const isSelected = selectedGameId === g.id;
+                return (
+                  <div key={g.id} onClick={() => setSelectedGameId(isSelected ? null : g.id)}
+                    style={{background:isSelected?"linear-gradient(135deg,#1a0505,#1a1a1a)":"var(--card)",
+                      border:isSelected?"2px solid var(--red)":"1px solid var(--border)",
+                      borderRadius:"var(--radius)",padding:"16px 18px",marginBottom:10,cursor:"pointer",transition:"all .2s"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                      <div style={{fontFamily:"var(--fh)",fontSize:"clamp(14px,3vw,18px)",fontWeight:900,textTransform:"uppercase"}}>
+                        {g.match?.home} <span style={{color:"var(--muted)",fontWeight:400}}>vs</span> {g.match?.away}
+                      </div>
+                      <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                        <div className={"avail "+st.cls}><div className="av-dot"/>{st.text}</div>
+                        {isSelected && <span style={{color:"var(--red)",fontWeight:900,fontSize:18}}>✓</span>}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:14,fontSize:12,color:"var(--muted)"}}>
+                      <span>{g.match?.date} · {g.match?.time}</span>
+                      <span><strong style={{color:"var(--text)"}}>{g.players?.length||0}</strong> players</span>
+                      <span><strong style={{color:"var(--red)"}}>£{g.players?.length||0}</strong> pot</span>
+                    </div>
+                    {g.players?.length > 0 && (
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:8}}>
+                        {g.players.map((p,pi) => (
+                          <div key={pi} style={{background:"#ffffff08",border:"1px solid var(--border)",borderRadius:12,padding:"2px 8px",fontSize:11,display:"flex",alignItems:"center",gap:4}}>
+                            <span style={{color:COLS[pi%COLS.length],fontSize:8}}>●</span>{p.name}
+                            {p.pick && <span style={{color:"#00e676",fontSize:9}}>✓</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            <div style={{textAlign:"center",padding:"30px 0"}}>
+              <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Games</div>
+              <div style={{color:"var(--muted)",fontSize:14,marginBottom:20}}>Create a game to get started</div>
+              <button className="btn btn-g" style={{width:"auto",padding:"10px 24px",fontSize:14}} onClick={refresh}>↻ Refresh</button>
+            </div>
+          )}
+
+          {selectedGame && (
+            <div className="card hi" style={{marginTop:4}}>
+              <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
+                {selectedGame.status==="picking"?"Rejoin Game":"Join Game"}
+              </div>
+              <div className="lbl">Your Name</div>
+              <input className="inp" ref={nameRef} defaultValue={playerName}
+                placeholder="Enter your name…" style={{fontSize:16,padding:"13px"}} />
+              <div className="lbl" style={{marginTop:4}}>
+                Your Password
+                <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11,marginLeft:6}}>
+                  (first time: choose one · returning: enter yours)
+                </span>
+              </div>
+              <input className="inp" ref={passRef} type="password"
+                placeholder="Choose or enter your password…" style={{fontSize:15}} />
+              <button className="btn btn-r" disabled={busy} onClick={joinSelected}
+                style={{fontSize:18,padding:"14px"}}>
+                {busy?"Joining…":selectedGame.status==="picking"?"⚽ Rejoin & Pick →":"⚽ Join Game →"}
+              </button>
+            </div>
+          )}
+
+          <div style={{textAlign:"center",marginTop:20}}>
+            <button className="btn btn-g" style={{fontSize:15,padding:"11px"}} onClick={()=>setScreen("create")}>
+              🏆 Create a New Game
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
+function RejoinResultsBtn({ name, busy, setBusy, game }) {
+  async function go() {
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      const d = await api({action:"get", gameId:game.id});
+      if (!d || !d.game || !Array.isArray(d.game.players)) { setBusy(false); return; }
+      const wasIn = d.game.players.find(p=>p.name.toLowerCase()===name.trim().toLowerCase());
+      if (!wasIn) { setErr("You weren't in this game."); setBusy(false); return; }
+      setTeamSheet(null); setModal(null);
+      setGame(d.game); setMyName(wasIn.name);
+      setIsAdmin(d.game.adminName===wasIn.name);
+      setScreen("results");
+    } catch(e) { setErr(e.message); }
+    setBusy(false);
+  }
+  return (
+    <button className="btn btn-r" disabled={!name.trim()||busy} onClick={go} style={{fontSize:19,padding:"15px"}}>
+      {busy ? "Loading…" : "View Results →"}
+    </button>
+  );
+}
+
+// ── CREATE GAME FORM ────────────────────────────────────────────────
+function CreateGameForm() {
+  const [adminName, setAdminName] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [sel, setSel] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(1); // 1=name, 2=match
+
+  async function create() {
+    if (!adminName.trim() || sel === null) return;
+    setBusy(true); setErr("");
+    const gameId = uid();
+    const match = FIXTURES[sel];
+    try {
+      const d = await api({action:"create", gameId, adminName:adminName.trim(), match, adminPassword:adminPassword.trim()});
+      if (!d || !d.game) { setErr("Failed to create game"); setBusy(false); return; }
+      // Clear all old game state before setting new game
+      setTeamSheet(null);
+      setSheetTab("home");
+      setModal(null);
+      setErr("");
+      setGame(d.game);
+      setMyName(adminName.trim());
+      setIsAdmin(true);
+      setCurrentGame(d.game);
+      try { localStorage.removeItem("ff"); } catch {}
+      // Put game ID in URL so the share link goes to this specific game
+      try { window.history.pushState({}, "", "?game=" + gameId); } catch {}
+      setScreen("lobby");
+    } catch(e) { setErr(e.message || "Error creating game"); }
+    setBusy(false);
+  }
+
+  return (
+    <div className="card hi" style={{marginTop:16}}>
+      <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",color:"var(--red)",marginBottom:16}}>
+        🏆 Create a Game
+      </div>
+
+      {step === 1 && (
+        <>
+          <div className="lbl">Your Name</div>
+          <input className="inp" placeholder="Enter your name…" value={adminName}
+            onChange={e=>setAdminName(e.target.value)} autoFocus />
+          <div className="lbl" style={{marginTop:4}}>
+            Your Password <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11}}>(so you can rejoin as admin)</span>
+          </div>
+          <input className="inp" placeholder="Choose a password for yourself…" value={adminPassword}
+            onChange={e=>setAdminPassword(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&adminName.trim()&&setStep(2)} />
+          <button className="btn btn-r" disabled={!adminName.trim()} onClick={()=>setStep(2)}>
+            Next: Pick Match →
+          </button>
+          <button className="btn btn-g" onClick={()=>setScreen("home")}>← Cancel</button>
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          <div className="lbl">Select a Match</div>
+          {FIXTURES.map((m,i) => {
+            const av = avail(m);
+            return (
+              <div key={i} className={"match-card"+(sel===i?" sel":"")} onClick={()=>setSel(i)}>
+                <div style={{flex:1}}>
+                  <div className="match-vs">{m.home} <span style={{color:"var(--muted)"}}>vs</span> {m.away}</div>
+                  <div className="match-dt">{m.date} · {m.time}</div>
+                </div>
+                <div className={"avail "+av.cls}><div className="av-dot"/>{av.label}</div>
+                {sel===i&&<span style={{color:"var(--red)",fontSize:18,fontWeight:900}}>✓</span>}
+              </div>
+            );
+          })}
+          <div className="two">
+            <button className="btn btn-g" onClick={()=>setStep(1)}>← Back</button>
+            <button className="btn btn-r" disabled={sel===null||busy} onClick={create}>
+              {busy?"Creating…":"Create Game →"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── LOBBY ───────────────────────────────────────────────────────────
+function LobbyScreen() {
+  const [copied, setCopied] = useState(false);
+  const players = game?.players || [];
+  const link = window.location.origin + "?game=" + game.id;
+
+  function copy() {
+    try { navigator.clipboard.writeText(link); } catch {}
+    setCopied(true); setTimeout(()=>setCopied(false),2000);
+  }
+
+  async function startPicking() {
+    try {
+      // First refresh to get latest player list
+      const latest = await api({action:"get", gameId:game.id});
+      if (latest && latest.game && Array.isArray(latest.game.players)) {
+        setGame(latest.game);
+      }
+      // Then open picking
+      const d = await api({action:"startPicking", gameId:game.id});
+      if (d && d.game && Array.isArray(d.game.players)) {
+        setGame(d.game);
+        setScreen("picking");
+        loadSheet(d.game.match);
+      }
+    } catch(e) { setErr(e.message); }
+  }
+
+  async function refresh() {
+    try {
+      const d = await api({action:"get", gameId:game.id});
+      if (d && d.game && Array.isArray(d.game.players)) setGame(d.game);
+    } catch {}
+  }
+
+  return (
+    <div className="con">
+      <div className="card hi" style={{marginBottom:16}}>
+        <div style={{fontFamily:"var(--fh)",fontSize:11,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"var(--red)",marginBottom:6}}>Tonight's Match</div>
+        <div style={{fontFamily:"var(--fh)",fontSize:"clamp(17px,4vw,24px)",fontWeight:900,textTransform:"uppercase",lineHeight:1.1}}>
+          {game.match?.home} <span style={{color:"var(--muted)"}}>vs</span> {game.match?.away}
+        </div>
+        <div style={{color:"var(--muted)",fontSize:13,marginTop:6}}>{game.match?.date} · {game.match?.time}</div>
+      </div>
+
+      <div className="lbl">Invite Friends — Share This Link</div>
+      <div className="share-box" onClick={copy}>{copied?"✓ Copied!":link}</div>
+      <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:16}}>
+        This link goes directly to your game — anyone who opens it can join
+      </div>
+
+      <div className="stats">
+        <div className="stat"><div className="stat-v">{players.length}</div><div className="stat-l">Players</div></div>
+        <div className="stat"><div className="stat-v">£{players.length}</div><div className="stat-l">Pot</div></div>
+        <div className="stat"><div className="stat-v">{10-players.length}</div><div className="stat-l">Slots Left</div></div>
+      </div>
+
+      <div className="lbl">Players Joined — £{players.length} pot</div>
+      {players.map((p,i) => (
+        <div key={i} className="player-lob" style={p.name===game.adminName?{borderColor:"#e6394840"}:{}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
+            <span style={{color:COLS[i%COLS.length],fontSize:18}}>●</span>
+            <span style={{fontWeight:600}}>{p.name}</span>
+            {p.name===myName&&<span className="badge">You</span>}
+            {p.name===game.adminName&&<span style={{fontSize:11,color:"var(--red)",fontFamily:"var(--fh)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginLeft:4}}>Admin</span>}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:12,color:p.pick?"#00e676":"var(--muted)"}}>{p.pick?"✓ Picked":"Waiting"}</span>
+            {isAdmin && p.name !== myName && (
+              <span
+                onClick={async()=>{
+                  if(!window.confirm("Remove "+p.name+" from the game? This will reduce the pot by £1.")) return;
+                  try {
+                    const d = await api({action:"removePlayer",gameId:game.id,playerName:p.name});
+                    if(d&&d.game&&Array.isArray(d.game.players)) setGame(d.game);
+                  } catch(e){setErr(e.message);}
+                }}
+                style={{cursor:"pointer",color:"var(--red)",fontSize:16,fontWeight:700,padding:"2px 6px",border:"1px solid #e6394850",borderRadius:4,lineHeight:1}}
+                title="Remove player"
+              >✕</span>
+            )}
+          </div>
+        </div>
+      ))}
+
+      <div className="two" style={{marginTop:16}}>
+        <button className="btn btn-g btn-sm" onClick={refresh}>↻ Refresh</button>
+        {isAdmin
+          ? <button className="btn btn-r" style={{flex:1,marginTop:0}} onClick={startPicking}>Open Picks →</button>
+          : <div style={{flex:1,fontSize:13,color:"var(--muted)",textAlign:"center",padding:"10px 0"}}>Waiting for admin…</div>
+        }
+      </div>
+      {/* WhatsApp notification buttons for admin */}
+      {isAdmin && (
+        <div style={{marginTop:16,display:"grid",gap:8}}>
+          <button className="btn btn-g" style={{fontSize:14,padding:"10px",background:"#25D36615",borderColor:"#25D36640",color:"#25D366"}}
+            onClick={()=>{
+              const msg = "🟢 *Football Friends 1st Goal Scorer*%0A" +
+                match.home + " vs " + match.away + "%0A" + match.date + " · " + match.time +
+                "%0A%0APicks are now OPEN! 🎯%0AJoin here: " + window.location.origin +
+                "%0A%0A£1 entry · Winner takes all 🏆";
+              window.open("https://wa.me/?text=" + msg, "_blank");
+            }}>
+            📲 Send WhatsApp — Picks Are Open!
+          </button>
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn btn-g btn-sm" style={{flex:1,fontSize:12}} onClick={async()=>{
+              if(!window.confirm("Cancel this game?")) return;
+              try {
+                await api({action:"cancel", gameId:game.id});
+                setCurrentGame(null); setGame(null); setMyName(""); setIsAdmin(false);
+                try { localStorage.removeItem("ff"); } catch {}
+                setScreen("home");
+              } catch(e){ setErr(e.message); }
+            }}>Cancel Game</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PICKING ─────────────────────────────────────────────────────────
+function PickingScreen() {
+  const players = game?.players || [];
+  const myPlayer = players.find(p=>p.name===myName);
+  const taken = players.filter(p=>p.pick).map(p=>p.pick?.name).filter(Boolean);
+
+  // Load sheet if not already loaded
+  useEffect(() => {
+    if (!teamSheet && !loadingSheet && game?.match) {
+      loadSheet(game.match);
+    }
+  }, []);
+
+  if (myPlayer?.pick) return (
+    <div className="con">
+      <div className="ok">✅ Your pick: <strong>{myPlayer.pick.name}</strong> — Good luck!</div>
+      <div className="lbl">All Picks</div>
+      <div className="card">
+        {players.map((p,i) => (
+          <div key={i} className="pick-row">
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{color:COLS[i%COLS.length],fontSize:16}}>●</span>
+              <div>
+                <div style={{fontWeight:600}}>{p.name}{p.name===myName&&<span className="badge">You</span>}</div>
+                <div style={{fontSize:13,color:p.pick?"#00e676":"var(--muted)",marginTop:2}}>{p.pick?"⚽ "+p.pick.name:"Yet to pick…"}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div style={{textAlign:"center",paddingTop:14,borderTop:"1px solid var(--border)",marginTop:8}}>
+          <div style={{color:"var(--muted)",fontSize:11,textTransform:"uppercase",letterSpacing:1,fontFamily:"var(--fh)"}}>Prize Pot</div>
+          <div className="pot">£{players.length}</div>
+        </div>
+      </div>
+      <div style={{textAlign:"center",color:"var(--muted)",fontSize:12,marginTop:8}}>Updates every 5 seconds</div>
+
+      {/* Admin panel - visible after picking */}
+      {isAdmin && (
+        <div style={{marginTop:20}}>
+          <div className="lbl">Admin Controls</div>
+          {!game.picksLocked && (
+            <button className="btn btn-gold" style={{fontSize:15,padding:"12px",marginBottom:10}}
+              onClick={async()=>{
+                if(!window.confirm("Lock all picks at kick off? Players without picks can be assigned one by you. Game will move to results.")) return;
+                try {
+                  const d = await api({action:"lockPicks", gameId:game.id});
+                  if(d&&d.game) { setGame(d.game); setScreen("results"); }
+                } catch(e){ setErr(e.message); }
+              }}>
+              ⏱️ Kick Off — Lock Picks & Progress Game
+            </button>
+          )}
+          <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>
+            Players who haven't picked yet:
+          </div>
+          {players.filter(p=>!p.pick).length === 0
+            ? <div style={{fontSize:13,color:"#00e676"}}>✓ Everyone has picked!</div>
+            : players.filter(p=>!p.pick).map((p,i) => (
+              <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{color:COLS[i%COLS.length]}}>●</span>
+                  <span style={{fontSize:14}}>{p.name}</span>
+                  <span style={{fontSize:12,color:"var(--amber)"}}>No pick</span>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <AdminPickAssigner player={p} gameId={game.id} teamSheet={teamSheet} onUpdate={setGame} />
+                  <span style={{cursor:"pointer",color:"var(--red)",fontSize:12,fontFamily:"var(--fh)",fontWeight:700,padding:"2px 8px",border:"1px solid #e6394850",borderRadius:4}}
+                    onClick={async()=>{
+                      if(!window.confirm("Remove "+p.name+"?")) return;
+                      try {
+                        const d = await api({action:"removePlayer",gameId:game.id,playerName:p.name});
+                        if(d&&d.game) setGame(d.game);
+                      } catch(e){setErr(e.message);}
+                    }}>Remove</span>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="con">
+      <div className="notice">⚽ <strong>{myName}</strong> — tap a player to pick your First Goal Scorer</div>
+      {loadingSheet ? (
+        <div className="loading"><div className="spin"/><p>Loading team sheets…</p></div>
+      ) : teamSheet ? (
+        <>
+          <div className="tabs">
+            <div className={"tab"+(sheetTab==="home"?" active":"")} onClick={()=>setSheetTab("home")}>{teamSheet.home?.team}</div>
+            <div className={"tab"+(sheetTab==="away"?" active":"")} onClick={()=>setSheetTab("away")}>{teamSheet.away?.team}</div>
+          </div>
+          {["home","away"].map(side => sheetTab===side ? (
+            <div key={side} className="team-panel">
+              <div className="team-hdr">
+                <div className="tdot" style={{background:teamSheet[side]?.colour||"#e63946"}}/>
+                {teamSheet[side]?.team}
+              </div>
+              {(teamSheet[side]?.players||[]).map((p,i) => {
+                const isTaken = taken.includes(p.name);
+                const takenBy = players.find(pl=>pl.pick?.name===p.name);
+                return (
+                  <div key={i} className={"prow"+(isTaken?" taken":"")} onClick={()=>!isTaken&&!myPlayer?.pick&&setModal(p)}>
+                    <span className="pnum">#{p.number}</span>
+                    <span className="pname">{p.name}</span>
+                    <PosTag pos={p.pos}/>
+                    {isTaken&&<span style={{fontSize:11,color:"var(--amber)"}}>→ {takenBy?.name}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          ):null)}
+        </>
+      ) : <div style={{textAlign:"center",padding:40,color:"var(--muted)"}}>Team sheet not available</div>}
+    </div>
+  );
+}
+
+// ── RESULTS ─────────────────────────────────────────────────────────
+function ResultsScreen() {
+  const players = game?.players || [];
+
+  async function declareWinner(player) {
+    try {
+      const d = await api({action:"declareWinner", gameId:game.id, winnerName:player.name});
+      if (d && d.game) setGame(d.game);
+    } catch(e) { setErr(e.message); }
+  }
+
+  if (game?.winner) return (
+    <div className="con">
+      <div className="winner-wrap">
+        <span className="trophy">🏆</span>
+        <div className="winner-name">{game.winner.name}</div>
+        <div style={{color:"var(--muted)",fontSize:15,margin:"10px 0 20px"}}>
+          picked <strong style={{color:"#fff"}}>{game.winner.pick?.name}</strong> — First Goal Scorer!
+        </div>
+        <div className="pot">£{players.length}</div>
+        <div style={{color:"var(--muted)",fontSize:12,marginTop:6,marginBottom:24}}>Winner takes all 🎉</div>
+        {isAdmin && (
+          <button className="btn" style={{background:"#25D36615",borderColor:"#25D36640",color:"#25D366",border:"1px solid",fontSize:16,padding:"12px",marginBottom:8}}
+            onClick={()=>{
+              const msg = "🏆 *Football Friends 1st Goal Scorer — We Have a Winner!*%0A%0A" +
+                game.match?.home + " vs " + game.match?.away + "%0A%0A" +
+                "🥇 *" + game.winner.name + "* wins £" + players.length + "!%0A" +
+                "⚽ First goal scorer: *" + game.winner.pick?.name + "*%0A%0A" +
+                "Well played everyone! 🎉";
+              window.open("https://wa.me/?text=" + msg, "_blank");
+            }}>
+            📲 Announce Winner on WhatsApp!
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="con">
+      <div className="lbl">All Picks</div>
+      <div className="stats">
+        <div className="stat"><div className="stat-v">{players.filter(p=>p.pick).length}/{players.length}</div><div className="stat-l">Picked</div></div>
+        <div className="stat"><div className="pot" style={{fontSize:32}}>£{players.length}</div><div className="stat-l">Prize Pot</div></div>
+      </div>
+      <div className="card">
+        {players.map((p,i) => (
+          <div key={i} className="pick-row">
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{color:COLS[i%COLS.length],fontSize:16}}>●</span>
+              <div>
+                <div style={{fontWeight:600}}>{p.name}{p.name===myName&&<span className="badge">You</span>}</div>
+                <div style={{fontSize:13,color:p.pick?"#00e676":"var(--muted)",marginTop:2}}>
+                  {p.pick?"⚽ "+p.pick.name+" ("+p.pick.pos+")":"No pick"}
+                </div>
+              </div>
+            </div>
+            {isAdmin&&p.pick&&!game.winner&&(
+              <button className="btn btn-gold btn-sm" onClick={()=>declareWinner(p)}>🏆 Winner!</button>
+            )}
+          </div>
+        ))}
+      </div>
+      {!isAdmin&&<div style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginTop:8}}>Waiting for the first goal… ⚽</div>}
+      {isAdmin&&<div style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginTop:8}}>Tap Winner! when the first goal goes in</div>}
+    </div>
+  );
+}
+
+
 export default function App() {
   const [screen, setScreen] = useState("home");
   const [myName, setMyName] = useState("");
@@ -367,599 +938,6 @@ export default function App() {
     }).catch(()=>{});
   }
 
-  // ── HOME SCREEN ─────────────────────────────────────────────────────
-  function HomeScreen() {
-    const [selectedGameId, setSelectedGameId] = useState(null);
-    const [busy, setBusy] = useState(false);
-    const name = playerName;
-    const setName = setPlayerName;
-    const joinPassword = playerPassword;
-    const setJoinPassword = setPlayerPassword;
-
-    const selectedGame = gamesList.find(g => g.id === selectedGameId) || null;
-    const activeGames = gamesList.filter(g => g.status !== "cancelled");
-
-    async function joinSelected() {
-      if (!name.trim() || !selectedGame) return;
-      setBusy(true); setErr("");
-      try {
-        const d = await api({action:"join", gameId:selectedGame.id, playerName:name.trim(), playerPassword:joinPassword.trim()});
-        if (!d || !d.game || !Array.isArray(d.game.players)) { setErr("Failed to join."); setBusy(false); return; }
-        if (d.error) { setErr(d.error); setBusy(false); return; }
-        try { localStorage.setItem("ff_name", name.trim()); } catch {}
-        setPlayerPassword("");
-        setTeamSheet(null); setModal(null);
-        setGame(d.game);
-        setMyName(name.trim());
-        setIsAdmin(d.game.adminName === name.trim());
-        setCurrentGame(d.game);
-        if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
-        else if (d.game.status === "results") setScreen("results");
-        else setScreen("lobby");
-      } catch(e) { setErr(e.message || "Connection error"); }
-      setBusy(false);
-    }
-
-    async function refresh() {
-      setLoading(true);
-      try {
-        const d = await api({action:"listGames"});
-        if (d && Array.isArray(d.games)) {
-          setGamesList(d.games);
-        }
-      } catch {}
-      setLoading(false);
-    }
-
-    function statusLabel(g) {
-      if (g.status === "lobby") return {text:"Open", cls:"av-ok"};
-      if (g.status === "picking") return {text:"Picks Open", cls:"av-soon"};
-      if (g.status === "results") return {text:"Finished", cls:"av-no"};
-      return {text:"Active", cls:"av-ok"};
-    }
-
-    return (
-      <div className="con">
-        {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={()=>setErr("")}>✕</span></div>}
-
-        <div style={{textAlign:"center",padding:"16px 0 24px"}}>
-          <div style={{fontSize:44,marginBottom:8}}>⚽</div>
-          <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--muted)",letterSpacing:3,textTransform:"uppercase"}}>
-            £1 Entry · Winner Takes All
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="loading"><div className="spin"/><p>Loading games…</p></div>
-        ) : (
-          <>
-            {/* Game list */}
-            {gamesList.length > 0 ? (
-              <>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                  <div className="lbl" style={{marginBottom:0}}>
-                    {"Select a Game to Join"}
-                  </div>
-                  <span style={{fontSize:12,color:"var(--muted)",cursor:"pointer"}} onClick={refresh}>↻ Refresh</span>
-                </div>
-
-                {gamesList.map((g,i) => {
-                  const av = avail(g.match);
-                  const st = statusLabel(g);
-                  const isSelected = selectedGameId === g.id;
-                  return (
-                    <div key={g.id}
-                      onClick={() => setSelectedGameId(isSelected ? null : g.id)}
-                      style={{
-                        background: isSelected ? "linear-gradient(135deg,#1a0505,#1a1a1a)" : "var(--card)",
-                        border: isSelected ? "2px solid var(--red)" : "1px solid var(--border)",
-                        borderRadius:"var(--radius)", padding:"16px 18px", marginBottom:10,
-                        cursor:"pointer", transition:"all .2s",
-                        boxShadow: isSelected ? "0 0 20px #e6394425" : "none"
-                      }}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                        <div style={{fontFamily:"var(--fh)",fontSize:"clamp(14px,3vw,18px)",fontWeight:900,textTransform:"uppercase"}}>
-                          {g.match?.home} <span style={{color:"var(--muted)",fontWeight:400}}>vs</span> {g.match?.away}
-                        </div>
-                        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-                          <div className={"avail "+st.cls}><div className="av-dot"/>{st.text}</div>
-                          {isSelected && <span style={{color:"var(--red)",fontWeight:900,fontSize:18}}>✓</span>}
-                        </div>
-                      </div>
-                      <div style={{display:"flex",gap:14,fontSize:12,color:"var(--muted)"}}>
-                        <span>{g.match?.date} · {g.match?.time}</span>
-                        <span><strong style={{color:"var(--text)"}}>{g.players?.length || 0}</strong> players</span>
-                        <span><strong style={{color:"var(--red)"}}>£{g.players?.length || 0}</strong> pot</span>
-                      </div>
-                      {g.players?.length > 0 && (
-                        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:8}}>
-                          {g.players.map((p,pi) => (
-                            <div key={pi} style={{background:"#ffffff08",border:"1px solid var(--border)",borderRadius:12,padding:"2px 8px",fontSize:11,display:"flex",alignItems:"center",gap:4}}>
-                              <span style={{color:COLS[pi%COLS.length],fontSize:8}}>●</span>{p.name}
-                              {p.pick && <span style={{color:"#00e676",fontSize:9}}>✓</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </>
-            ) : (
-              <div style={{textAlign:"center",padding:"30px 0"}}>
-                <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Games</div>
-                <div style={{color:"var(--muted)",fontSize:14,marginBottom:20}}>Create a game to get started</div>
-                <button className="btn btn-g" style={{width:"auto",padding:"10px 24px",fontSize:14}} onClick={refresh}>↻ Refresh</button>
-              </div>
-            )}
-
-            {/* Join form - shows when a game is selected */}
-            {selectedGame && selectedGame.status !== "results" && (
-              <div className="card hi" style={{marginTop:4}}>
-                <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
-                  {selectedGame.status === "picking" ? "Rejoin Game" : "Join Game"}
-                </div>
-                <div className="lbl">Your Name</div>
-                {name ? (
-                  <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,padding:"11px 14px",fontSize:16,fontWeight:600,marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{color:"var(--red)"}}>●</span>{name}
-                    <span style={{fontSize:11,color:"#00e676",marginLeft:"auto",cursor:"pointer"}}
-                      onClick={()=>{ try{localStorage.removeItem("ff_name")}catch{}; setPlayerName(""); }}>Change ✓</span>
-                  </div>
-                ) : (
-                  <input className="inp" placeholder="Enter your name…" value={name}
-                    onChange={e=>setName(e.target.value)} autoFocus style={{fontSize:16,padding:"13px"}} />
-                )}
-                <div className="lbl" style={{marginTop:2}}>
-                  Your Password
-                  <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11,marginLeft:6}}>
-                    (first time: choose one · returning: enter yours)
-                  </span>
-                </div>
-                <input className="inp" placeholder="Choose or enter your password…"
-                  value={joinPassword} onChange={e=>setJoinPassword(e.target.value)}
-                  onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinSelected()}
-                  style={{fontSize:15}} type="password" />
-                <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinSelected}
-                  style={{fontSize:18,padding:"14px"}}>
-                  {busy ? "Joining…" : selectedGame.status === "picking" ? "⚽ Rejoin & Pick →" : "⚽ Join Game →"}
-                </button>
-              </div>
-            )}
-
-
-
-            {/* Create game link */}
-            <div style={{textAlign:"center",marginTop:20}}>
-              <button className="btn btn-g" style={{fontSize:15,padding:"11px"}} onClick={()=>setScreen("create")}>
-                🏆 Create a New Game
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  function RejoinResultsBtn({ name, busy, setBusy, game }) {
-    async function go() {
-      if (!name.trim()) return;
-      setBusy(true);
-      try {
-        const d = await api({action:"get", gameId:game.id});
-        if (!d || !d.game || !Array.isArray(d.game.players)) { setBusy(false); return; }
-        const wasIn = d.game.players.find(p=>p.name.toLowerCase()===name.trim().toLowerCase());
-        if (!wasIn) { setErr("You weren't in this game."); setBusy(false); return; }
-        setTeamSheet(null); setModal(null);
-        setGame(d.game); setMyName(wasIn.name);
-        setIsAdmin(d.game.adminName===wasIn.name);
-        setScreen("results");
-      } catch(e) { setErr(e.message); }
-      setBusy(false);
-    }
-    return (
-      <button className="btn btn-r" disabled={!name.trim()||busy} onClick={go} style={{fontSize:19,padding:"15px"}}>
-        {busy ? "Loading…" : "View Results →"}
-      </button>
-    );
-  }
-
-  // ── CREATE GAME FORM ────────────────────────────────────────────────
-  function CreateGameForm() {
-    const [adminName, setAdminName] = useState("");
-    const [adminPassword, setAdminPassword] = useState("");
-    const [sel, setSel] = useState(null);
-    const [busy, setBusy] = useState(false);
-    const [step, setStep] = useState(1); // 1=name, 2=match
-
-    async function create() {
-      if (!adminName.trim() || sel === null) return;
-      setBusy(true); setErr("");
-      const gameId = uid();
-      const match = FIXTURES[sel];
-      try {
-        const d = await api({action:"create", gameId, adminName:adminName.trim(), match, adminPassword:adminPassword.trim()});
-        if (!d || !d.game) { setErr("Failed to create game"); setBusy(false); return; }
-        // Clear all old game state before setting new game
-        setTeamSheet(null);
-        setSheetTab("home");
-        setModal(null);
-        setErr("");
-        setGame(d.game);
-        setMyName(adminName.trim());
-        setIsAdmin(true);
-        setCurrentGame(d.game);
-        try { localStorage.removeItem("ff"); } catch {}
-        // Put game ID in URL so the share link goes to this specific game
-        try { window.history.pushState({}, "", "?game=" + gameId); } catch {}
-        setScreen("lobby");
-      } catch(e) { setErr(e.message || "Error creating game"); }
-      setBusy(false);
-    }
-
-    return (
-      <div className="card hi" style={{marginTop:16}}>
-        <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",color:"var(--red)",marginBottom:16}}>
-          🏆 Create a Game
-        </div>
-
-        {step === 1 && (
-          <>
-            <div className="lbl">Your Name</div>
-            <input className="inp" placeholder="Enter your name…" value={adminName}
-              onChange={e=>setAdminName(e.target.value)} autoFocus />
-            <div className="lbl" style={{marginTop:4}}>
-              Your Password <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11}}>(so you can rejoin as admin)</span>
-            </div>
-            <input className="inp" placeholder="Choose a password for yourself…" value={adminPassword}
-              onChange={e=>setAdminPassword(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&adminName.trim()&&setStep(2)} />
-            <button className="btn btn-r" disabled={!adminName.trim()} onClick={()=>setStep(2)}>
-              Next: Pick Match →
-            </button>
-            <button className="btn btn-g" onClick={()=>setScreen("home")}>← Cancel</button>
-          </>
-        )}
-
-        {step === 2 && (
-          <>
-            <div className="lbl">Select a Match</div>
-            {FIXTURES.map((m,i) => {
-              const av = avail(m);
-              return (
-                <div key={i} className={"match-card"+(sel===i?" sel":"")} onClick={()=>setSel(i)}>
-                  <div style={{flex:1}}>
-                    <div className="match-vs">{m.home} <span style={{color:"var(--muted)"}}>vs</span> {m.away}</div>
-                    <div className="match-dt">{m.date} · {m.time}</div>
-                  </div>
-                  <div className={"avail "+av.cls}><div className="av-dot"/>{av.label}</div>
-                  {sel===i&&<span style={{color:"var(--red)",fontSize:18,fontWeight:900}}>✓</span>}
-                </div>
-              );
-            })}
-            <div className="two">
-              <button className="btn btn-g" onClick={()=>setStep(1)}>← Back</button>
-              <button className="btn btn-r" disabled={sel===null||busy} onClick={create}>
-                {busy?"Creating…":"Create Game →"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  // ── LOBBY ───────────────────────────────────────────────────────────
-  function LobbyScreen() {
-    const [copied, setCopied] = useState(false);
-    const players = game?.players || [];
-    const link = window.location.origin + "?game=" + game.id;
-
-    function copy() {
-      try { navigator.clipboard.writeText(link); } catch {}
-      setCopied(true); setTimeout(()=>setCopied(false),2000);
-    }
-
-    async function startPicking() {
-      try {
-        // First refresh to get latest player list
-        const latest = await api({action:"get", gameId:game.id});
-        if (latest && latest.game && Array.isArray(latest.game.players)) {
-          setGame(latest.game);
-        }
-        // Then open picking
-        const d = await api({action:"startPicking", gameId:game.id});
-        if (d && d.game && Array.isArray(d.game.players)) {
-          setGame(d.game);
-          setScreen("picking");
-          loadSheet(d.game.match);
-        }
-      } catch(e) { setErr(e.message); }
-    }
-
-    async function refresh() {
-      try {
-        const d = await api({action:"get", gameId:game.id});
-        if (d && d.game && Array.isArray(d.game.players)) setGame(d.game);
-      } catch {}
-    }
-
-    return (
-      <div className="con">
-        <div className="card hi" style={{marginBottom:16}}>
-          <div style={{fontFamily:"var(--fh)",fontSize:11,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:"var(--red)",marginBottom:6}}>Tonight's Match</div>
-          <div style={{fontFamily:"var(--fh)",fontSize:"clamp(17px,4vw,24px)",fontWeight:900,textTransform:"uppercase",lineHeight:1.1}}>
-            {game.match?.home} <span style={{color:"var(--muted)"}}>vs</span> {game.match?.away}
-          </div>
-          <div style={{color:"var(--muted)",fontSize:13,marginTop:6}}>{game.match?.date} · {game.match?.time}</div>
-        </div>
-
-        <div className="lbl">Invite Friends — Share This Link</div>
-        <div className="share-box" onClick={copy}>{copied?"✓ Copied!":link}</div>
-        <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:16}}>
-          This link goes directly to your game — anyone who opens it can join
-        </div>
-
-        <div className="stats">
-          <div className="stat"><div className="stat-v">{players.length}</div><div className="stat-l">Players</div></div>
-          <div className="stat"><div className="stat-v">£{players.length}</div><div className="stat-l">Pot</div></div>
-          <div className="stat"><div className="stat-v">{10-players.length}</div><div className="stat-l">Slots Left</div></div>
-        </div>
-
-        <div className="lbl">Players Joined — £{players.length} pot</div>
-        {players.map((p,i) => (
-          <div key={i} className="player-lob" style={p.name===game.adminName?{borderColor:"#e6394840"}:{}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,flex:1}}>
-              <span style={{color:COLS[i%COLS.length],fontSize:18}}>●</span>
-              <span style={{fontWeight:600}}>{p.name}</span>
-              {p.name===myName&&<span className="badge">You</span>}
-              {p.name===game.adminName&&<span style={{fontSize:11,color:"var(--red)",fontFamily:"var(--fh)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginLeft:4}}>Admin</span>}
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:12,color:p.pick?"#00e676":"var(--muted)"}}>{p.pick?"✓ Picked":"Waiting"}</span>
-              {isAdmin && p.name !== myName && (
-                <span
-                  onClick={async()=>{
-                    if(!window.confirm("Remove "+p.name+" from the game? This will reduce the pot by £1.")) return;
-                    try {
-                      const d = await api({action:"removePlayer",gameId:game.id,playerName:p.name});
-                      if(d&&d.game&&Array.isArray(d.game.players)) setGame(d.game);
-                    } catch(e){setErr(e.message);}
-                  }}
-                  style={{cursor:"pointer",color:"var(--red)",fontSize:16,fontWeight:700,padding:"2px 6px",border:"1px solid #e6394850",borderRadius:4,lineHeight:1}}
-                  title="Remove player"
-                >✕</span>
-              )}
-            </div>
-          </div>
-        ))}
-
-        <div className="two" style={{marginTop:16}}>
-          <button className="btn btn-g btn-sm" onClick={refresh}>↻ Refresh</button>
-          {isAdmin
-            ? <button className="btn btn-r" style={{flex:1,marginTop:0}} onClick={startPicking}>Open Picks →</button>
-            : <div style={{flex:1,fontSize:13,color:"var(--muted)",textAlign:"center",padding:"10px 0"}}>Waiting for admin…</div>
-          }
-        </div>
-        {/* WhatsApp notification buttons for admin */}
-        {isAdmin && (
-          <div style={{marginTop:16,display:"grid",gap:8}}>
-            <button className="btn btn-g" style={{fontSize:14,padding:"10px",background:"#25D36615",borderColor:"#25D36640",color:"#25D366"}}
-              onClick={()=>{
-                const msg = "🟢 *Football Friends 1st Goal Scorer*%0A" +
-                  match.home + " vs " + match.away + "%0A" + match.date + " · " + match.time +
-                  "%0A%0APicks are now OPEN! 🎯%0AJoin here: " + window.location.origin +
-                  "%0A%0A£1 entry · Winner takes all 🏆";
-                window.open("https://wa.me/?text=" + msg, "_blank");
-              }}>
-              📲 Send WhatsApp — Picks Are Open!
-            </button>
-            <div style={{display:"flex",gap:8}}>
-              <button className="btn btn-g btn-sm" style={{flex:1,fontSize:12}} onClick={async()=>{
-                if(!window.confirm("Cancel this game?")) return;
-                try {
-                  await api({action:"cancel", gameId:game.id});
-                  setCurrentGame(null); setGame(null); setMyName(""); setIsAdmin(false);
-                  try { localStorage.removeItem("ff"); } catch {}
-                  setScreen("home");
-                } catch(e){ setErr(e.message); }
-              }}>Cancel Game</button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── PICKING ─────────────────────────────────────────────────────────
-  function PickingScreen() {
-    const players = game?.players || [];
-    const myPlayer = players.find(p=>p.name===myName);
-    const taken = players.filter(p=>p.pick).map(p=>p.pick?.name).filter(Boolean);
-
-    // Load sheet if not already loaded
-    useEffect(() => {
-      if (!teamSheet && !loadingSheet && game?.match) {
-        loadSheet(game.match);
-      }
-    }, []);
-
-    if (myPlayer?.pick) return (
-      <div className="con">
-        <div className="ok">✅ Your pick: <strong>{myPlayer.pick.name}</strong> — Good luck!</div>
-        <div className="lbl">All Picks</div>
-        <div className="card">
-          {players.map((p,i) => (
-            <div key={i} className="pick-row">
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <span style={{color:COLS[i%COLS.length],fontSize:16}}>●</span>
-                <div>
-                  <div style={{fontWeight:600}}>{p.name}{p.name===myName&&<span className="badge">You</span>}</div>
-                  <div style={{fontSize:13,color:p.pick?"#00e676":"var(--muted)",marginTop:2}}>{p.pick?"⚽ "+p.pick.name:"Yet to pick…"}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div style={{textAlign:"center",paddingTop:14,borderTop:"1px solid var(--border)",marginTop:8}}>
-            <div style={{color:"var(--muted)",fontSize:11,textTransform:"uppercase",letterSpacing:1,fontFamily:"var(--fh)"}}>Prize Pot</div>
-            <div className="pot">£{players.length}</div>
-          </div>
-        </div>
-        <div style={{textAlign:"center",color:"var(--muted)",fontSize:12,marginTop:8}}>Updates every 5 seconds</div>
-
-        {/* Admin panel - visible after picking */}
-        {isAdmin && (
-          <div style={{marginTop:20}}>
-            <div className="lbl">Admin Controls</div>
-            {!game.picksLocked && (
-              <button className="btn btn-gold" style={{fontSize:15,padding:"12px",marginBottom:10}}
-                onClick={async()=>{
-                  if(!window.confirm("Lock all picks at kick off? Players without picks can be assigned one by you. Game will move to results.")) return;
-                  try {
-                    const d = await api({action:"lockPicks", gameId:game.id});
-                    if(d&&d.game) { setGame(d.game); setScreen("results"); }
-                  } catch(e){ setErr(e.message); }
-                }}>
-                ⏱️ Kick Off — Lock Picks & Progress Game
-              </button>
-            )}
-            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>
-              Players who haven't picked yet:
-            </div>
-            {players.filter(p=>!p.pick).length === 0
-              ? <div style={{fontSize:13,color:"#00e676"}}>✓ Everyone has picked!</div>
-              : players.filter(p=>!p.pick).map((p,i) => (
-                <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{color:COLS[i%COLS.length]}}>●</span>
-                    <span style={{fontSize:14}}>{p.name}</span>
-                    <span style={{fontSize:12,color:"var(--amber)"}}>No pick</span>
-                  </div>
-                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <AdminPickAssigner player={p} gameId={game.id} teamSheet={teamSheet} onUpdate={setGame} />
-                    <span style={{cursor:"pointer",color:"var(--red)",fontSize:12,fontFamily:"var(--fh)",fontWeight:700,padding:"2px 8px",border:"1px solid #e6394850",borderRadius:4}}
-                      onClick={async()=>{
-                        if(!window.confirm("Remove "+p.name+"?")) return;
-                        try {
-                          const d = await api({action:"removePlayer",gameId:game.id,playerName:p.name});
-                          if(d&&d.game) setGame(d.game);
-                        } catch(e){setErr(e.message);}
-                      }}>Remove</span>
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-        )}
-      </div>
-    );
-
-    return (
-      <div className="con">
-        <div className="notice">⚽ <strong>{myName}</strong> — tap a player to pick your First Goal Scorer</div>
-        {loadingSheet ? (
-          <div className="loading"><div className="spin"/><p>Loading team sheets…</p></div>
-        ) : teamSheet ? (
-          <>
-            <div className="tabs">
-              <div className={"tab"+(sheetTab==="home"?" active":"")} onClick={()=>setSheetTab("home")}>{teamSheet.home?.team}</div>
-              <div className={"tab"+(sheetTab==="away"?" active":"")} onClick={()=>setSheetTab("away")}>{teamSheet.away?.team}</div>
-            </div>
-            {["home","away"].map(side => sheetTab===side ? (
-              <div key={side} className="team-panel">
-                <div className="team-hdr">
-                  <div className="tdot" style={{background:teamSheet[side]?.colour||"#e63946"}}/>
-                  {teamSheet[side]?.team}
-                </div>
-                {(teamSheet[side]?.players||[]).map((p,i) => {
-                  const isTaken = taken.includes(p.name);
-                  const takenBy = players.find(pl=>pl.pick?.name===p.name);
-                  return (
-                    <div key={i} className={"prow"+(isTaken?" taken":"")} onClick={()=>!isTaken&&!myPlayer?.pick&&setModal(p)}>
-                      <span className="pnum">#{p.number}</span>
-                      <span className="pname">{p.name}</span>
-                      <PosTag pos={p.pos}/>
-                      {isTaken&&<span style={{fontSize:11,color:"var(--amber)"}}>→ {takenBy?.name}</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            ):null)}
-          </>
-        ) : <div style={{textAlign:"center",padding:40,color:"var(--muted)"}}>Team sheet not available</div>}
-      </div>
-    );
-  }
-
-  // ── RESULTS ─────────────────────────────────────────────────────────
-  function ResultsScreen() {
-    const players = game?.players || [];
-
-    async function declareWinner(player) {
-      try {
-        const d = await api({action:"declareWinner", gameId:game.id, winnerName:player.name});
-        if (d && d.game) setGame(d.game);
-      } catch(e) { setErr(e.message); }
-    }
-
-    if (game?.winner) return (
-      <div className="con">
-        <div className="winner-wrap">
-          <span className="trophy">🏆</span>
-          <div className="winner-name">{game.winner.name}</div>
-          <div style={{color:"var(--muted)",fontSize:15,margin:"10px 0 20px"}}>
-            picked <strong style={{color:"#fff"}}>{game.winner.pick?.name}</strong> — First Goal Scorer!
-          </div>
-          <div className="pot">£{players.length}</div>
-          <div style={{color:"var(--muted)",fontSize:12,marginTop:6,marginBottom:24}}>Winner takes all 🎉</div>
-          {isAdmin && (
-            <button className="btn" style={{background:"#25D36615",borderColor:"#25D36640",color:"#25D366",border:"1px solid",fontSize:16,padding:"12px",marginBottom:8}}
-              onClick={()=>{
-                const msg = "🏆 *Football Friends 1st Goal Scorer — We Have a Winner!*%0A%0A" +
-                  game.match?.home + " vs " + game.match?.away + "%0A%0A" +
-                  "🥇 *" + game.winner.name + "* wins £" + players.length + "!%0A" +
-                  "⚽ First goal scorer: *" + game.winner.pick?.name + "*%0A%0A" +
-                  "Well played everyone! 🎉";
-                window.open("https://wa.me/?text=" + msg, "_blank");
-              }}>
-              📲 Announce Winner on WhatsApp!
-            </button>
-          )}
-        </div>
-      </div>
-    );
-
-    return (
-      <div className="con">
-        <div className="lbl">All Picks</div>
-        <div className="stats">
-          <div className="stat"><div className="stat-v">{players.filter(p=>p.pick).length}/{players.length}</div><div className="stat-l">Picked</div></div>
-          <div className="stat"><div className="pot" style={{fontSize:32}}>£{players.length}</div><div className="stat-l">Prize Pot</div></div>
-        </div>
-        <div className="card">
-          {players.map((p,i) => (
-            <div key={i} className="pick-row">
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <span style={{color:COLS[i%COLS.length],fontSize:16}}>●</span>
-                <div>
-                  <div style={{fontWeight:600}}>{p.name}{p.name===myName&&<span className="badge">You</span>}</div>
-                  <div style={{fontSize:13,color:p.pick?"#00e676":"var(--muted)",marginTop:2}}>
-                    {p.pick?"⚽ "+p.pick.name+" ("+p.pick.pos+")":"No pick"}
-                  </div>
-                </div>
-              </div>
-              {isAdmin&&p.pick&&!game.winner&&(
-                <button className="btn btn-gold btn-sm" onClick={()=>declareWinner(p)}>🏆 Winner!</button>
-              )}
-            </div>
-          ))}
-        </div>
-        {!isAdmin&&<div style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginTop:8}}>Waiting for the first goal… ⚽</div>}
-        {isAdmin&&<div style={{textAlign:"center",color:"var(--muted)",fontSize:13,marginTop:8}}>Tap Winner! when the first goal goes in</div>}
-      </div>
-    );
-  }
-
   // ── RENDER ──────────────────────────────────────────────────────────
   return (
     <div className="app">
@@ -985,7 +963,7 @@ export default function App() {
         </div>
       )}
 
-      {screen==="home" && <HomeScreen/>}
+      {screen==="home" && <HomeScreen gamesList={gamesList} loading={loading} err={err} setErr={setErr} playerName={playerName} setPlayerName={setPlayerName} playerPassword={playerPassword} setPlayerPassword={setPlayerPassword} setScreen={setScreen} setGame={setGame} setMyName={setMyName} setIsAdmin={setIsAdmin} setCurrentGame={setCurrentGame} setTeamSheet={setTeamSheet} setModal={setModal} loadSheet={loadSheet} COLS={COLS} avail={avail}/>}
       {screen==="create" && <CreateGameForm/>}
       {screen==="lobby" && game && <LobbyScreen/>}
       {screen==="picking" && game && <PickingScreen/>}

@@ -105,29 +105,29 @@ document.head.appendChild(styleEl);
 const COLS = ["#e63946","#ff6b35","#c9a227","#4361ee","#9b5de5","#00b4d8","#06d6a0","#fb8500","#e07a5f","#52b788"];
 
 const FIXTURES = [
-  // Today - Sun 17 May
-  { home:"Brentford", away:"Crystal Palace", date:"Sun 17 May", time:"12:30" },
-  { home:"Everton", away:"Sunderland", date:"Sun 17 May", time:"15:00" },
-  { home:"Leeds United", away:"Brighton", date:"Sun 17 May", time:"15:00" },
-  { home:"Manchester United", away:"Nottingham Forest", date:"Sun 17 May", time:"15:00" },
-  { home:"Newcastle United", away:"West Ham United", date:"Sun 17 May", time:"15:00" },
-  { home:"Wolves", away:"Fulham", date:"Sun 17 May", time:"15:00" },
+  // Today Sun 17 May
+  { home:"Manchester United", away:"Nottingham Forest", date:"Sun 17 May", time:"12:30" },
+  { home:"Brentford",         away:"Crystal Palace",   date:"Sun 17 May", time:"15:00" },
+  { home:"Everton",           away:"Sunderland",       date:"Sun 17 May", time:"15:00" },
+  { home:"Leeds United",      away:"Brighton",         date:"Sun 17 May", time:"15:00" },
+  { home:"Wolves",            away:"Fulham",           date:"Sun 17 May", time:"15:00" },
+  { home:"Newcastle United",  away:"West Ham United",  date:"Sun 17 May", time:"17:30" },
   // Mon 18 May
-  { home:"Arsenal", away:"Burnley", date:"Mon 18 May", time:"20:00" },
+  { home:"Arsenal",           away:"Burnley",          date:"Mon 18 May", time:"20:00" },
   // Tue 19 May
-  { home:"AFC Bournemouth", away:"Manchester City", date:"Tue 19 May", time:"20:00" },
-  { home:"Chelsea", away:"Tottenham Hotspur", date:"Tue 19 May", time:"20:00" },
-  // Final day - Sun 24 May
-  { home:"Brighton", away:"Manchester United", date:"Sun 24 May", time:"17:00" },
-  { home:"Burnley", away:"Wolves", date:"Sun 24 May", time:"17:00" },
-  { home:"Crystal Palace", away:"Arsenal", date:"Sun 24 May", time:"17:00" },
-  { home:"Fulham", away:"Newcastle United", date:"Sun 24 May", time:"17:00" },
-  { home:"Liverpool", away:"Brentford", date:"Sun 24 May", time:"17:00" },
-  { home:"Manchester City", away:"Aston Villa", date:"Sun 24 May", time:"17:00" },
-  { home:"Nottingham Forest", away:"Bournemouth", date:"Sun 24 May", time:"17:00" },
-  { home:"Sunderland", away:"Chelsea", date:"Sun 24 May", time:"17:00" },
-  { home:"Tottenham Hotspur", away:"Everton", date:"Sun 24 May", time:"17:00" },
-  { home:"West Ham United", away:"Leeds United", date:"Sun 24 May", time:"17:00" },
+  { home:"AFC Bournemouth",   away:"Manchester City",  date:"Tue 19 May", time:"19:30" },
+  { home:"Chelsea",           away:"Tottenham Hotspur",date:"Tue 19 May", time:"20:15" },
+  // Final day Sun 24 May - all 16:00
+  { home:"Brighton",          away:"Manchester United",date:"Sun 24 May", time:"16:00" },
+  { home:"Burnley",           away:"Wolves",           date:"Sun 24 May", time:"16:00" },
+  { home:"Crystal Palace",    away:"Arsenal",          date:"Sun 24 May", time:"16:00" },
+  { home:"Fulham",            away:"Newcastle United", date:"Sun 24 May", time:"16:00" },
+  { home:"Liverpool",         away:"Brentford",        date:"Sun 24 May", time:"16:00" },
+  { home:"Manchester City",   away:"Aston Villa",      date:"Sun 24 May", time:"16:00" },
+  { home:"Nottingham Forest", away:"Bournemouth",      date:"Sun 24 May", time:"16:00" },
+  { home:"Sunderland",        away:"Chelsea",          date:"Sun 24 May", time:"16:00" },
+  { home:"Tottenham Hotspur", away:"Everton",          date:"Sun 24 May", time:"16:00" },
+  { home:"West Ham United",   away:"Leeds United",     date:"Sun 24 May", time:"16:00" },
 ];
 
 

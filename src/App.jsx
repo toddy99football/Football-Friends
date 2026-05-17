@@ -317,7 +317,7 @@ export default function App() {
       }
     };
 
-    // Try API first - use two-step approach: search then format
+    // Try API first - two step: search then format
     try {
       const now = new Date();
       const dateStr = now.toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric"});
@@ -329,40 +329,40 @@ export default function App() {
         tools: [{type:"web_search_20250305", name:"web_search"}],
         messages: [{
           role: "user",
-          content: "Search for the confirmed starting lineup for " + match.home + " vs " + match.away + " Premier League on " + dateStr + ". List both teams' starting 11 and substitutes with shirt numbers."
+          content: "Search for the confirmed starting lineup for " + match.home + " vs " + match.away + " Premier League on " + dateStr + ". List both teams starting 11 and substitutes with shirt numbers."
         }]
       });
 
-      // Extract all text from search response
-      const searchText = (searchResult.content || []).map(b => b.text || "").join(" ");
+      const searchText = (searchResult.content || []).map(function(b) { return b.text || ""; }).join(" ");
 
       if (searchText && searchText.length > 100) {
-        // Step 2: format into JSON using a separate call with no tools
+        // Step 2: format into JSON - no tools, strict output
+        const homeTeam = match.home;
+        const awayTeam = match.away;
+        const formatPrompt = "You must output ONLY a valid JSON array with no other text. Convert this football lineup into this exact format: " +
+          '[{"team":"HOMETEAM","colour":"#95bfe5","players":[{"number":1,"name":"Player Name","pos":"GK"}]},{"team":"AWAYTEAM","colour":"#e63946","players":[]}]' +
+          " Replace HOMETEAM with " + homeTeam + " and AWAYTEAM with " + awayTeam + "." +
+          " pos values must be exactly GK, DEF, MID, or FWD." +
+          " Include all starters and subs. Here is the lineup: " + searchText;
+
         const formatResult = await aiCall({
           model: "claude-sonnet-4-20250514",
           max_tokens: 2000,
-          system: "You are a JSON formatter. You only output valid JSON arrays. No explanation, no markdown, no text. Just the raw JSON array.",
-          messages: [{
-            role: "user",
-            content: "Convert this lineup information into a JSON array. Output ONLY the array, nothing else:
-
-" + searchText + "
-
-Format: [{"team":"" + match.home + "","colour":"#95bfe5","players":[{"number":9,"name":"Full Name","pos":"FWD"}]},{"team":"" + match.away + "","colour":"#e63946","players":[{"number":1,"name":"Full Name","pos":"GK"}]}]. pos must be GK, DEF, MID, or FWD."
-          }]
+          messages: [
+            { role: "user", content: "You are a JSON-only API. Never output text, only raw JSON arrays." },
+            { role: "assistant", content: "[" },
+            { role: "user", content: formatPrompt }
+          ]
         });
 
-        const formatText = (formatResult.content || []).filter(b => b.type === "text").map(b => b.text || "").join("").trim();
-        const s = formatText.indexOf("[");
-        const e = formatText.lastIndexOf("]");
+        var formatText = (formatResult.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text || ""; }).join("").trim();
+        if (!formatText.startsWith("[")) formatText = "[" + formatText;
+        var s2 = formatText.indexOf("[");
+        var e2 = formatText.lastIndexOf("]");
 
-        if (s >= 0 && e > s) {
-          const parsed = JSON.parse(formatText.slice(s, e + 1));
-          if (
-            Array.isArray(parsed) && parsed.length >= 2 &&
-            Array.isArray(parsed[0]?.players) && parsed[0].players.length >= 10 &&
-            Array.isArray(parsed[1]?.players) && parsed[1].players.length >= 10
-          ) {
+        if (s2 >= 0 && e2 > s2) {
+          var parsed = JSON.parse(formatText.slice(s2, e2 + 1));
+          if (Array.isArray(parsed) && parsed.length >= 2 && Array.isArray(parsed[0] && parsed[0].players) && parsed[0].players.length >= 10 && Array.isArray(parsed[1] && parsed[1].players) && parsed[1].players.length >= 10) {
             setTeamSheet({home: parsed[0], away: parsed[1]});
             setSheetTab("home");
             setLoadingSheet(false);
@@ -370,9 +370,9 @@ Format: [{"team":"" + match.home + "","colour":"#95bfe5","players":[{"number":9,
           }
         }
       }
-      throw new Error("Could not parse lineup from API");
-    } catch(e) {
-      console.log("API team sheet failed:", e.message);
+      throw new Error("Could not parse lineup");
+    } catch(apiErr) {
+      console.log("API team sheet failed:", apiErr.message);
     }
 
         // Fall back to hardcoded or generic

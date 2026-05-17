@@ -32,18 +32,42 @@ module.exports = async function handler(req, res) {
 
     switch (action) {
 
+      case 'listGames': {
+        const gameList = await redisGet('gamelist') || [];
+        var activeGames = [];
+        for (var i = 0; i < gameList.length; i++) {
+          try {
+            var g = await redisGet('game:' + gameList[i]);
+            // Only show lobby and picking games - hide finished and cancelled
+            if (g && g.status !== 'cancelled' && g.status !== 'results') {
+              var safe = JSON.parse(JSON.stringify(g));
+              safe.players = safe.players.map(function(p) { return { name: p.name, pick: p.pick }; });
+              activeGames.push(safe);
+            }
+          } catch(e) {}
+        }
+        return res.json({ games: activeGames });
+      }
+
       case 'create': {
+        const adminPassword = req.body.adminPassword || '';
         const game = {
           id: gameId,
           adminName: adminName,
           match: match,
           status: 'lobby',
-          players: [{ name: adminName, pick: null }],
+          players: [{ name: adminName, pick: null, password: adminPassword }],
           winner: null,
           createdAt: Date.now(),
         };
-        // Save game and also set it as the "current" game
         await redisSet('game:' + gameId, game);
+        // Add to game list
+        var list = await redisGet('gamelist') || [];
+        if (!Array.isArray(list)) list = [];
+        list.push(gameId);
+        // Keep only last 20 games
+        if (list.length > 20) list = list.slice(-20);
+        await redisSet('gamelist', list);
         await redisSet('current', gameId);
         return res.json({ game: game });
       }
@@ -58,20 +82,39 @@ module.exports = async function handler(req, res) {
       case 'get': {
         const game = await redisGet('game:' + gameId);
         if (!game) return res.status(404).json({ error: 'Game not found' });
-        return res.json({ game: game });
+        var safeGet = JSON.parse(JSON.stringify(game));
+        safeGet.players = safeGet.players.map(function(p) { return { name: p.name, pick: p.pick }; });
+        return res.json({ game: safeGet });
       }
 
       case 'join': {
         const game = await redisGet('game:' + gameId);
         if (!game) return res.status(404).json({ error: 'Game not found' });
-        if (game.players.length >= 10) return res.json({ error: 'Game is full' });
-        var exists = false;
+        if (game.players.length >= 10) return res.json({ error: 'Game is full (10 players max)' });
+        var playerPassword = req.body.playerPassword || '';
+        var existingPlayer = null;
         for (var i = 0; i < game.players.length; i++) {
-          if (game.players[i].name === playerName) { exists = true; break; }
+          if (game.players[i].name.toLowerCase() === playerName.toLowerCase()) {
+            existingPlayer = game.players[i];
+            break;
+          }
         }
-        if (!exists) game.players.push({ name: playerName, pick: null });
+        if (existingPlayer) {
+          // Returning player - check their password if they set one
+          if (existingPlayer.password && playerPassword.toLowerCase() !== existingPlayer.password.toLowerCase()) {
+            return res.status(401).json({ error: 'Wrong password for ' + playerName + '. Try again.' });
+          }
+        } else {
+          // New player - add them with their chosen password
+          game.players.push({ name: playerName, pick: null, password: playerPassword });
+        }
         await redisSet('game:' + game.id, game);
-        return res.json({ game: game });
+        // Don't expose other players passwords in response
+        var safeGame = JSON.parse(JSON.stringify(game));
+        safeGame.players = safeGame.players.map(function(p) {
+          return { name: p.name, pick: p.pick };
+        });
+        return res.json({ game: safeGame });
       }
 
       case 'startPicking': {
@@ -94,11 +137,7 @@ module.exports = async function handler(req, res) {
         if (!player) return res.json({ error: 'Player not in game' });
         if (taken) return res.json({ error: 'Player already picked by someone else' });
         player.pick = pick;
-        var allPicked = true;
-        for (var i = 0; i < game.players.length; i++) {
-          if (!game.players[i].pick) { allPicked = false; break; }
-        }
-        if (allPicked) game.status = 'results';
+        // Don't auto-progress - admin controls kick-off lock
         await redisSet('game:' + game.id, game);
         return res.json({ game: game });
       }
@@ -124,6 +163,33 @@ module.exports = async function handler(req, res) {
         await redisSet('game:' + game.id, game);
         // Clear current game pointer
         await redisSet('current', null);
+        return res.json({ game: game });
+      }
+
+      case 'lockPicks': {
+        // Admin locks picks at kick off - game progresses regardless
+        const game = await redisGet('game:' + gameId);
+        if (!game) return res.status(404).json({ error: 'Game not found' });
+        game.picksLocked = true;
+        game.status = 'results'; // Move to results so admin can declare winner
+        await redisSet('game:' + game.id, game);
+        return res.json({ game: game });
+      }
+
+      case 'adminPick': {
+        // Admin assigns a pick for a player who hasn't picked
+        const game = await redisGet('game:' + gameId);
+        if (!game) return res.status(404).json({ error: 'Game not found' });
+        var player = null;
+        var taken = false;
+        for (var i = 0; i < game.players.length; i++) {
+          if (game.players[i].name === playerName) player = game.players[i];
+          if (game.players[i].pick && game.players[i].pick.name === pick.name) taken = true;
+        }
+        if (!player) return res.json({ error: 'Player not found' });
+        if (taken) return res.json({ error: 'Player already picked by someone else' });
+        player.pick = pick;
+        await redisSet('game:' + game.id, game);
         return res.json({ game: game });
       }
 

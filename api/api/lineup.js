@@ -5,70 +5,73 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { home, away } = req.body || {};
-  if (!home || !away) return res.status(400).json({ error: 'Missing home or away team' });
+  if (!home || !away) return res.status(400).json({ error: 'Missing teams' });
+
+  const API_KEY = process.env.FOOTBALL_API_KEY;
 
   try {
-    // Step 1: Search for lineup
-    const searchRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.VITE_ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{
-          role: 'user',
-          content: 'Search for the confirmed or predicted starting lineup for ' + home + ' vs ' + away + ' Premier League 2025-26. List each player with their shirt number and position.'
-        }]
-      })
+    // Get current PL matches
+    const matchRes = await fetch('https://api.football-data.org/v4/competitions/PL/matches?status=SCHEDULED,LIVE,IN_PLAY,PAUSED', {
+      headers: { 'X-Auth-Token': API_KEY }
+    });
+    const matchData = await matchRes.json();
+
+    // Find our match
+    const match = (matchData.matches || []).find(m => {
+      const h = m.homeTeam.name.toLowerCase();
+      const a = m.awayTeam.name.toLowerCase();
+      const searchHome = home.toLowerCase();
+      const searchAway = away.toLowerCase();
+      return (h.includes(searchHome.split(' ')[0]) || searchHome.includes(h.split(' ')[0])) &&
+             (a.includes(searchAway.split(' ')[0]) || searchAway.includes(a.split(' ')[0]));
     });
 
-    const searchData = await searchRes.json();
-    const searchText = (searchData.content || []).map(function(b) { return b.text || ''; }).join(' ');
-
-    if (!searchText || searchText.length < 50) {
-      return res.json({ home: null, away: null, error: 'No lineup data found' });
+    if (!match) {
+      return res.json({ home: null, away: null, error: 'Match not found' });
     }
 
-    // Step 2: Format into structured JSON
-    const formatRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.VITE_ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [
-          {
-            role: 'user',
-            content: 'Extract the football lineups from this text and return ONLY a JSON object with no other text:\n\n' + searchText + '\n\nReturn exactly this structure:\n{"home":{"team":"' + home + '","colour":"#95bfe5","players":[{"number":1,"name":"Full Name","pos":"GK"}]},"away":{"team":"' + away + '","colour":"#e63946","players":[{"number":1,"name":"Full Name","pos":"GK"}]}}\n\npos must be GK, DEF, MID, or FWD. Include all starters and subs. Return ONLY the JSON object, nothing else.'
-          }
-        ]
-      })
+    // Get lineups for this match
+    const lineupRes = await fetch('https://api.football-data.org/v4/matches/' + match.id + '/lineups', {
+      headers: { 'X-Auth-Token': API_KEY }
     });
+    const lineupData = await lineupRes.json();
 
-    const formatData = await formatRes.json();
-    const formatText = (formatData.content || []).filter(function(b) { return b.type === 'text'; }).map(function(b) { return b.text || ''; }).join('').trim();
-
-    // Parse the JSON
-    var jsonStart = formatText.indexOf('{');
-    var jsonEnd = formatText.lastIndexOf('}');
-
-    if (jsonStart >= 0 && jsonEnd > jsonStart) {
-      var parsed = JSON.parse(formatText.slice(jsonStart, jsonEnd + 1));
-      if (parsed.home && parsed.away && Array.isArray(parsed.home.players) && parsed.home.players.length >= 5) {
-        return res.json({ home: parsed.home, away: parsed.away });
-      }
+    if (!lineupData.homeTeam || !lineupData.awayTeam) {
+      return res.json({ home: null, away: null, error: 'Lineups not yet available' });
     }
 
-    return res.json({ home: null, away: null, error: 'Could not parse lineup' });
+    function formatTeam(team, colour) {
+      var players = [];
+      (team.startingXI || []).forEach(function(p) {
+        players.push({
+          number: p.shirtNumber || 0,
+          name: p.name,
+          pos: mapPos(p.position)
+        });
+      });
+      (team.substitutes || []).forEach(function(p) {
+        players.push({
+          number: p.shirtNumber || 0,
+          name: p.name,
+          pos: mapPos(p.position)
+        });
+      });
+      return { team: team.name, colour: colour, players: players };
+    }
+
+    function mapPos(pos) {
+      if (!pos) return 'MID';
+      pos = pos.toUpperCase();
+      if (pos.includes('KEEPER') || pos === 'GK') return 'GK';
+      if (pos.includes('BACK') || pos.includes('DEFENCE') || pos === 'DEF') return 'DEF';
+      if (pos.includes('FORWARD') || pos.includes('WINGER') || pos === 'FWD') return 'FWD';
+      return 'MID';
+    }
+
+    return res.json({
+      home: formatTeam(lineupData.homeTeam, '#95bfe5'),
+      away: formatTeam(lineupData.awayTeam, '#e63946')
+    });
 
   } catch (err) {
     return res.status(500).json({ error: err.message, home: null, away: null });

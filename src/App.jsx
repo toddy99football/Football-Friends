@@ -174,7 +174,8 @@ export default function App() {
   const [myName, setMyName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [game, setGame] = useState(null);
-  const [currentGame, setCurrentGame] = useState(null); // live game anyone can see
+  const [currentGame, setCurrentGame] = useState(null);
+  const [gamesList, setGamesList] = useState([]);
   const [teamSheet, setTeamSheet] = useState(null);
   const [loadingSheet, setLoadingSheet] = useState(false);
   const [sheetTab, setSheetTab] = useState("home");
@@ -182,19 +183,33 @@ export default function App() {
   const [modal, setModal] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On load: always show home screen, but fetch current game for display
+  // On load: load all games
   useEffect(() => {
     async function init() {
       try {
-        const d = await api({action:"getCurrent"});
-        if (d && d.game && Array.isArray(d.game.players)) {
-          setCurrentGame(d.game);
+        const params = new URLSearchParams(window.location.search);
+        const urlGameId = params.get("game");
+        if (urlGameId) {
+          // Direct link to specific game
+          const d = await api({action:"get", gameId:urlGameId});
+          if (d && d.game && Array.isArray(d.game.players)) {
+            setCurrentGame(d.game);
+            setGamesList([d.game]);
+          }
+        } else {
+          // Load all active games
+          const d = await api({action:"listGames"});
+          if (d && Array.isArray(d.games)) {
+            const active = d.games.filter(g => g.status !== "cancelled" && g.status !== "results");
+            const finished = d.games.filter(g => g.status === "results");
+            setGamesList([...active, ...finished]);
+            if (active.length === 1) setCurrentGame(active[0]);
+          }
         }
       } catch {}
       setLoading(false);
     }
     init();
-    // Clear any old session so home screen is always fresh
     try { localStorage.removeItem("ff"); } catch {}
   }, []);
 
@@ -302,35 +317,47 @@ export default function App() {
       }
     };
 
-    // Try API first
+    // Try API first - use two-step approach: search then format
     try {
       const now = new Date();
       const dateStr = now.toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric"});
-      const timeStr = now.toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit"});
 
-      const d = await aiCall({
+      // Step 1: search for lineup
+      const searchResult = await aiCall({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        system: "You are a football data API. You ONLY respond with raw JSON arrays. No explanation, no markdown, no text before or after the JSON. Your entire response must be a valid JSON array starting with [ and ending with ].",
+        max_tokens: 1000,
         tools: [{type:"web_search_20250305", name:"web_search"}],
         messages: [{
           role: "user",
-          content: "Search for the confirmed official starting lineup for " + match.home + " vs " + match.away +
-            " Premier League on " + dateStr + ". Return ONLY this JSON array with nothing else: " +
-            '[{"team":"' + match.home + '","colour":"#95bfe5","players":[{"number":1,"name":"Player Name","pos":"GK"}]},' +
-            '{"team":"' + match.away + '","colour":"#e63946","players":[{"number":1,"name":"Player Name","pos":"GK"}]}]' +
-            ". Use real confirmed player names, real shirt numbers. pos must be GK DEF MID or FWD. Include all 11 starters and all subs."
+          content: "Search for the confirmed starting lineup for " + match.home + " vs " + match.away + " Premier League on " + dateStr + ". List both teams' starting 11 and substitutes with shirt numbers."
         }]
       });
 
-      // Extract text blocks only
-      const textBlocks = (d.content || []).filter(b => b.type === "text").map(b => b.text || "").join(" ");
-      
-      if (textBlocks) {
-        const s = textBlocks.indexOf("[");
-        const e = textBlocks.lastIndexOf("]");
+      // Extract all text from search response
+      const searchText = (searchResult.content || []).map(b => b.text || "").join(" ");
+
+      if (searchText && searchText.length > 100) {
+        // Step 2: format into JSON using a separate call with no tools
+        const formatResult = await aiCall({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 2000,
+          system: "You are a JSON formatter. You only output valid JSON arrays. No explanation, no markdown, no text. Just the raw JSON array.",
+          messages: [{
+            role: "user",
+            content: "Convert this lineup information into a JSON array. Output ONLY the array, nothing else:
+
+" + searchText + "
+
+Format: [{"team":"" + match.home + "","colour":"#95bfe5","players":[{"number":9,"name":"Full Name","pos":"FWD"}]},{"team":"" + match.away + "","colour":"#e63946","players":[{"number":1,"name":"Full Name","pos":"GK"}]}]. pos must be GK, DEF, MID, or FWD."
+          }]
+        });
+
+        const formatText = (formatResult.content || []).filter(b => b.type === "text").map(b => b.text || "").join("").trim();
+        const s = formatText.indexOf("[");
+        const e = formatText.lastIndexOf("]");
+
         if (s >= 0 && e > s) {
-          const parsed = JSON.parse(textBlocks.slice(s, e + 1));
+          const parsed = JSON.parse(formatText.slice(s, e + 1));
           if (
             Array.isArray(parsed) && parsed.length >= 2 &&
             Array.isArray(parsed[0]?.players) && parsed[0].players.length >= 10 &&
@@ -343,9 +370,9 @@ export default function App() {
           }
         }
       }
-      throw new Error("Invalid response from API");
+      throw new Error("Could not parse lineup from API");
     } catch(e) {
-      console.log("API sheet failed, using hardcoded:", e.message);
+      console.log("API team sheet failed:", e.message);
     }
 
         // Fall back to hardcoded or generic
@@ -375,25 +402,27 @@ export default function App() {
 
   // ── HOME SCREEN ─────────────────────────────────────────────────────
   function HomeScreen() {
-    const [name, setName] = useState("");
+    const [selectedGameId, setSelectedGameId] = useState(null);
+    const [name, setName] = useState(() => { try { return localStorage.getItem("ff_name") || ""; } catch { return ""; } });
+    const [joinPassword, setJoinPassword] = useState("");
     const [busy, setBusy] = useState(false);
-    const [mode, setMode] = useState(null); // null | "join" | "joinGame"
 
-    const hasGame = currentGame && Array.isArray(currentGame.players) && currentGame.status !== "results";
-    const isPicking = hasGame && currentGame.status === "picking";
-    const av = hasGame ? avail(currentGame.match) : null;
+    const selectedGame = gamesList.find(g => g.id === selectedGameId) || null;
+    const activeGames = gamesList.filter(g => g.status !== "cancelled");
 
-    async function joinGame() {
-      if (!name.trim() || !currentGame) return;
+    async function joinSelected() {
+      if (!name.trim() || !selectedGame) return;
       setBusy(true); setErr("");
       try {
-        const d = await api({action:"join", gameId:currentGame.id, playerName:name.trim()});
+        const d = await api({action:"join", gameId:selectedGame.id, playerName:name.trim(), playerPassword:joinPassword.trim()});
         if (!d || !d.game || !Array.isArray(d.game.players)) { setErr("Failed to join."); setBusy(false); return; }
         if (d.error) { setErr(d.error); setBusy(false); return; }
+        try { localStorage.setItem("ff_name", name.trim()); } catch {}
         setTeamSheet(null); setModal(null);
         setGame(d.game);
         setMyName(name.trim());
         setIsAdmin(d.game.adminName === name.trim());
+        setCurrentGame(d.game);
         if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
         else if (d.game.status === "results") setScreen("results");
         else setScreen("lobby");
@@ -401,102 +430,141 @@ export default function App() {
       setBusy(false);
     }
 
+    async function refresh() {
+      setLoading(true);
+      try {
+        const d = await api({action:"listGames"});
+        if (d && Array.isArray(d.games)) {
+          setGamesList(d.games);
+        }
+      } catch {}
+      setLoading(false);
+    }
+
+    function statusLabel(g) {
+      if (g.status === "lobby") return {text:"Open", cls:"av-ok"};
+      if (g.status === "picking") return {text:"Picks Open", cls:"av-soon"};
+      if (g.status === "results") return {text:"Finished", cls:"av-no"};
+      return {text:"Active", cls:"av-ok"};
+    }
+
     return (
       <div className="con">
         {err && <div className="err"><span>{err}</span><span style={{cursor:"pointer"}} onClick={()=>setErr("")}>✕</span></div>}
 
-        {/* Hero */}
         <div style={{textAlign:"center",padding:"16px 0 24px"}}>
-          <div style={{fontSize:44,marginBottom:10}}>⚽</div>
+          <div style={{fontSize:44,marginBottom:8}}>⚽</div>
           <div style={{fontFamily:"var(--fh)",fontSize:14,color:"var(--muted)",letterSpacing:3,textTransform:"uppercase"}}>
             £1 Entry · Winner Takes All
           </div>
         </div>
 
         {loading ? (
-          <div className="loading"><div className="spin"/><p>Loading…</p></div>
+          <div className="loading"><div className="spin"/><p>Loading games…</p></div>
         ) : (
           <>
-            {/* ── LIVE GAME CARD ── */}
-            {hasGame && (
-              <div style={{marginBottom:20}}>
-                <div className={"avail "+av.cls} style={{display:"inline-flex",marginBottom:10,fontSize:12,padding:"4px 12px"}}>
-                  <div className="av-dot"/>{isPicking ? "Picks Open" : "Game Lobby"}
+            {/* Game list */}
+            {gamesList.length > 0 ? (
+              <>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <div className="lbl" style={{marginBottom:0}}>
+                    {"Select a Game to Join"}
+                  </div>
+                  <span style={{fontSize:12,color:"var(--muted)",cursor:"pointer"}} onClick={refresh}>↻ Refresh</span>
                 </div>
-                <div className="live-game" style={{cursor:"default",marginBottom:0}}>
-                  <div style={{fontFamily:"var(--fh)",fontSize:"clamp(20px,5vw,32px)",fontWeight:900,textTransform:"uppercase",lineHeight:1,marginBottom:4}}>
-                    {currentGame.match?.home} <span style={{color:"var(--muted)",fontWeight:400}}>vs</span> {currentGame.match?.away}
-                  </div>
-                  <div style={{color:"var(--muted)",fontSize:13,marginBottom:14}}>
-                    {currentGame.match?.date} · {currentGame.match?.time}
-                  </div>
-                  <div style={{display:"flex",gap:16,marginBottom:currentGame.players.length>0?14:0}}>
-                    <div style={{fontSize:13}}><strong style={{color:"var(--text)"}}>{currentGame.players.length}</strong> <span style={{color:"var(--muted)"}}>players</span></div>
-                    <div style={{fontSize:13}}><strong style={{color:"var(--red)"}}>£{currentGame.players.length}</strong> <span style={{color:"var(--muted)"}}>pot</span></div>
-                    <div style={{fontSize:13}}><strong style={{color:"var(--text)"}}>{10-currentGame.players.length}</strong> <span style={{color:"var(--muted)"}}>slots left</span></div>
-                  </div>
-                  {currentGame.players.length > 0 && (
-                    <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                      {currentGame.players.map((p,i) => (
-                        <div key={i} style={{background:"#ffffff0a",border:"1px solid var(--border)",borderRadius:20,padding:"3px 10px",fontSize:12,display:"flex",alignItems:"center",gap:5}}>
-                          <span style={{color:COLS[i%COLS.length],fontSize:9}}>●</span>{p.name}
-                          {p.pick && <span style={{color:"#00e676",fontSize:10}}>✓</span>}
+
+                {gamesList.map((g,i) => {
+                  const av = avail(g.match);
+                  const st = statusLabel(g);
+                  const isSelected = selectedGameId === g.id;
+                  return (
+                    <div key={g.id}
+                      onClick={() => setSelectedGameId(isSelected ? null : g.id)}
+                      style={{
+                        background: isSelected ? "linear-gradient(135deg,#1a0505,#1a1a1a)" : "var(--card)",
+                        border: isSelected ? "2px solid var(--red)" : "1px solid var(--border)",
+                        borderRadius:"var(--radius)", padding:"16px 18px", marginBottom:10,
+                        cursor:"pointer", transition:"all .2s",
+                        boxShadow: isSelected ? "0 0 20px #e6394425" : "none"
+                      }}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                        <div style={{fontFamily:"var(--fh)",fontSize:"clamp(14px,3vw,18px)",fontWeight:900,textTransform:"uppercase"}}>
+                          {g.match?.home} <span style={{color:"var(--muted)",fontWeight:400}}>vs</span> {g.match?.away}
                         </div>
-                      ))}
+                        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                          <div className={"avail "+st.cls}><div className="av-dot"/>{st.text}</div>
+                          {isSelected && <span style={{color:"var(--red)",fontWeight:900,fontSize:18}}>✓</span>}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:14,fontSize:12,color:"var(--muted)"}}>
+                        <span>{g.match?.date} · {g.match?.time}</span>
+                        <span><strong style={{color:"var(--text)"}}>{g.players?.length || 0}</strong> players</span>
+                        <span><strong style={{color:"var(--red)"}}>£{g.players?.length || 0}</strong> pot</span>
+                      </div>
+                      {g.players?.length > 0 && (
+                        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:8}}>
+                          {g.players.map((p,pi) => (
+                            <div key={pi} style={{background:"#ffffff08",border:"1px solid var(--border)",borderRadius:12,padding:"2px 8px",fontSize:11,display:"flex",alignItems:"center",gap:4}}>
+                              <span style={{color:COLS[pi%COLS.length],fontSize:8}}>●</span>{p.name}
+                              {p.pick && <span style={{color:"#00e676",fontSize:9}}>✓</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })}
+              </>
+            ) : (
+              <div style={{textAlign:"center",padding:"30px 0"}}>
+                <div style={{fontFamily:"var(--fh)",fontSize:22,fontWeight:900,textTransform:"uppercase",marginBottom:8}}>No Active Games</div>
+                <div style={{color:"var(--muted)",fontSize:14,marginBottom:20}}>Create a game to get started</div>
+                <button className="btn btn-g" style={{width:"auto",padding:"10px 24px",fontSize:14}} onClick={refresh}>↻ Refresh</button>
               </div>
             )}
 
-            {/* ── NO GAME MESSAGE ── */}
-            {!hasGame && !currentGame?.status && (
-              <div style={{textAlign:"center",padding:"20px 0 28px",color:"var(--muted)",fontSize:14}}>
-                No active game right now
-              </div>
-            )}
-
-            {/* ── ACTION BUTTONS ── */}
-            {mode === null && (
-              <div style={{display:"grid",gap:10}}>
-                {hasGame && (
-                  <button className="btn btn-r" style={{fontSize:20,padding:"16px"}} onClick={()=>setMode("joinGame")}>
-                    ⚽ {isPicking ? "Rejoin & Pick →" : "Join Game →"}
-                  </button>
-                )}
-                <button className="btn btn-g" style={{fontSize:16}} onClick={()=>setScreen("create")}>
-                  🏆 Create a New Game
-                </button>
-                {currentGame?.status === "results" && (
-                  <button className="btn btn-g" style={{fontSize:16}} onClick={()=>setMode("joinGame")}>
-                    📋 View Results
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* ── JOIN FORM ── */}
-            {mode === "joinGame" && (
-              <div className="card hi">
-                <div style={{fontFamily:"var(--fh)",fontSize:20,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
-                  {currentGame?.status === "results" ? "View Results" : isPicking ? "Rejoin Game" : "Join Game"}
+            {/* Join form - shows when a game is selected */}
+            {selectedGame && selectedGame.status !== "results" && (
+              <div className="card hi" style={{marginTop:4}}>
+                <div style={{fontFamily:"var(--fh)",fontSize:18,fontWeight:900,textTransform:"uppercase",marginBottom:14,color:"var(--red)"}}>
+                  {selectedGame.status === "picking" ? "Rejoin Game" : "Join Game"}
                 </div>
                 <div className="lbl">Your Name</div>
-                <input className="inp" placeholder="Enter your name…" value={name}
-                  onChange={e=>setName(e.target.value)}
-                  onKeyDown={e=>e.key==="Enter"&&name.trim()&&(currentGame?.status==="results"?rejoinResults():joinGame())}
-                  autoFocus style={{fontSize:17,padding:"14px"}} />
-                {currentGame?.status === "results" ? (
-                  <RejoinResultsBtn name={name} busy={busy} setBusy={setBusy} game={currentGame} />
+                {name ? (
+                  <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,padding:"11px 14px",fontSize:16,fontWeight:600,marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{color:"var(--red)"}}>●</span>{name}
+                    <span style={{fontSize:11,color:"#00e676",marginLeft:"auto",cursor:"pointer"}}
+                      onClick={()=>{ try{localStorage.removeItem("ff_name")}catch{}; setName(""); }}>Change ✓</span>
+                  </div>
                 ) : (
-                  <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinGame}
-                    style={{fontSize:19,padding:"15px"}}>
-                    {busy ? "Joining…" : isPicking ? "Rejoin & Pick →" : "Join Game →"}
-                  </button>
+                  <input className="inp" placeholder="Enter your name…" value={name}
+                    onChange={e=>setName(e.target.value)} autoFocus style={{fontSize:16,padding:"13px"}} />
                 )}
-                <button className="btn btn-g" style={{marginTop:8}} onClick={()=>setMode(null)}>← Back</button>
+                <div className="lbl" style={{marginTop:2}}>
+                  Your Password
+                  <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11,marginLeft:6}}>
+                    (first time: choose one · returning: enter yours)
+                  </span>
+                </div>
+                <input className="inp" placeholder="Choose or enter your password…"
+                  value={joinPassword} onChange={e=>setJoinPassword(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&name.trim()&&joinSelected()}
+                  style={{fontSize:15}} type="password" />
+                <button className="btn btn-r" disabled={!name.trim()||busy} onClick={joinSelected}
+                  style={{fontSize:18,padding:"14px"}}>
+                  {busy ? "Joining…" : selectedGame.status === "picking" ? "⚽ Rejoin & Pick →" : "⚽ Join Game →"}
+                </button>
               </div>
             )}
+
+
+
+            {/* Create game link */}
+            <div style={{textAlign:"center",marginTop:20}}>
+              <button className="btn btn-g" style={{fontSize:15,padding:"11px"}} onClick={()=>setScreen("create")}>
+                🏆 Create a New Game
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -529,6 +597,7 @@ export default function App() {
   // ── CREATE GAME FORM ────────────────────────────────────────────────
   function CreateGameForm() {
     const [adminName, setAdminName] = useState("");
+    const [adminPassword, setAdminPassword] = useState("");
     const [sel, setSel] = useState(null);
     const [busy, setBusy] = useState(false);
     const [step, setStep] = useState(1); // 1=name, 2=match
@@ -539,7 +608,7 @@ export default function App() {
       const gameId = uid();
       const match = FIXTURES[sel];
       try {
-        const d = await api({action:"create", gameId, adminName:adminName.trim(), match});
+        const d = await api({action:"create", gameId, adminName:adminName.trim(), match, adminPassword:adminPassword.trim()});
         if (!d || !d.game) { setErr("Failed to create game"); setBusy(false); return; }
         // Clear all old game state before setting new game
         setTeamSheet(null);
@@ -551,6 +620,8 @@ export default function App() {
         setIsAdmin(true);
         setCurrentGame(d.game);
         try { localStorage.removeItem("ff"); } catch {}
+        // Put game ID in URL so the share link goes to this specific game
+        try { window.history.pushState({}, "", "?game=" + gameId); } catch {}
         setScreen("lobby");
       } catch(e) { setErr(e.message || "Error creating game"); }
       setBusy(false);
@@ -567,6 +638,12 @@ export default function App() {
             <div className="lbl">Your Name</div>
             <input className="inp" placeholder="Enter your name…" value={adminName}
               onChange={e=>setAdminName(e.target.value)} autoFocus />
+            <div className="lbl" style={{marginTop:4}}>
+              Your Password <span style={{color:"var(--muted)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11}}>(so you can rejoin as admin)</span>
+            </div>
+            <input className="inp" placeholder="Choose a password for yourself…" value={adminPassword}
+              onChange={e=>setAdminPassword(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&adminName.trim()&&setStep(2)} />
             <button className="btn btn-r" disabled={!adminName.trim()} onClick={()=>setStep(2)}>
               Next: Pick Match →
             </button>
@@ -606,7 +683,7 @@ export default function App() {
   function LobbyScreen() {
     const [copied, setCopied] = useState(false);
     const players = game?.players || [];
-    const link = window.location.origin;
+    const link = window.location.origin + "?game=" + game.id;
 
     function copy() {
       try { navigator.clipboard.writeText(link); } catch {}
@@ -650,7 +727,7 @@ export default function App() {
         <div className="lbl">Invite Friends — Share This Link</div>
         <div className="share-box" onClick={copy}>{copied?"✓ Copied!":link}</div>
         <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginBottom:16}}>
-          Friends just open the link, enter their name and tap Join
+          This link goes directly to your game — anyone who opens it can join
         </div>
 
         <div className="stats">
@@ -694,23 +771,30 @@ export default function App() {
             : <div style={{flex:1,fontSize:13,color:"var(--muted)",textAlign:"center",padding:"10px 0"}}>Waiting for admin…</div>
           }
         </div>
+        {/* WhatsApp notification buttons for admin */}
         {isAdmin && (
-          <div style={{textAlign:"center",marginTop:14}}>
-            <span
-              style={{fontSize:12,color:"var(--muted)",cursor:"pointer",textDecoration:"underline"}}
-              onClick={async()=>{
-                if(!window.confirm("Cancel this game? All players will be removed and the pot cleared.")) return;
+          <div style={{marginTop:16,display:"grid",gap:8}}>
+            <button className="btn btn-g" style={{fontSize:14,padding:"10px",background:"#25D36615",borderColor:"#25D36640",color:"#25D366"}}
+              onClick={()=>{
+                const msg = "🟢 *Football Friends 1st Goal Scorer*%0A" +
+                  match.home + " vs " + match.away + "%0A" + match.date + " · " + match.time +
+                  "%0A%0APicks are now OPEN! 🎯%0AJoin here: " + window.location.origin +
+                  "%0A%0A£1 entry · Winner takes all 🏆";
+                window.open("https://wa.me/?text=" + msg, "_blank");
+              }}>
+              📲 Send WhatsApp — Picks Are Open!
+            </button>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn btn-g btn-sm" style={{flex:1,fontSize:12}} onClick={async()=>{
+                if(!window.confirm("Cancel this game?")) return;
                 try {
                   await api({action:"cancel", gameId:game.id});
-                  setCurrentGame(null);
-                  setGame(null);
-                  setMyName("");
-                  setIsAdmin(false);
+                  setCurrentGame(null); setGame(null); setMyName(""); setIsAdmin(false);
                   try { localStorage.removeItem("ff"); } catch {}
                   setScreen("home");
                 } catch(e){ setErr(e.message); }
-              }}
-            >Cancel game</span>
+              }}>Cancel Game</button>
+            </div>
           </div>
         )}
       </div>
@@ -752,6 +836,51 @@ export default function App() {
           </div>
         </div>
         <div style={{textAlign:"center",color:"var(--muted)",fontSize:12,marginTop:8}}>Updates every 5 seconds</div>
+
+        {/* Admin panel - visible after picking */}
+        {isAdmin && (
+          <div style={{marginTop:20}}>
+            <div className="lbl">Admin Controls</div>
+            {!game.picksLocked && (
+              <button className="btn btn-gold" style={{fontSize:15,padding:"12px",marginBottom:10}}
+                onClick={async()=>{
+                  if(!window.confirm("Lock all picks at kick off? Players without picks can be assigned one by you. Game will move to results.")) return;
+                  try {
+                    const d = await api({action:"lockPicks", gameId:game.id});
+                    if(d&&d.game) { setGame(d.game); setScreen("results"); }
+                  } catch(e){ setErr(e.message); }
+                }}>
+                ⏱️ Kick Off — Lock Picks & Progress Game
+              </button>
+            )}
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>
+              Players who haven't picked yet:
+            </div>
+            {players.filter(p=>!p.pick).length === 0
+              ? <div style={{fontSize:13,color:"#00e676"}}>✓ Everyone has picked!</div>
+              : players.filter(p=>!p.pick).map((p,i) => (
+                <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{color:COLS[i%COLS.length]}}>●</span>
+                    <span style={{fontSize:14}}>{p.name}</span>
+                    <span style={{fontSize:12,color:"var(--amber)"}}>No pick</span>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <AdminPickAssigner player={p} gameId={game.id} teamSheet={teamSheet} onUpdate={setGame} />
+                    <span style={{cursor:"pointer",color:"var(--red)",fontSize:12,fontFamily:"var(--fh)",fontWeight:700,padding:"2px 8px",border:"1px solid #e6394850",borderRadius:4}}
+                      onClick={async()=>{
+                        if(!window.confirm("Remove "+p.name+"?")) return;
+                        try {
+                          const d = await api({action:"removePlayer",gameId:game.id,playerName:p.name});
+                          if(d&&d.game) setGame(d.game);
+                        } catch(e){setErr(e.message);}
+                      }}>Remove</span>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
       </div>
     );
 
@@ -776,7 +905,7 @@ export default function App() {
                   const isTaken = taken.includes(p.name);
                   const takenBy = players.find(pl=>pl.pick?.name===p.name);
                   return (
-                    <div key={i} className={"prow"+(isTaken?" taken":"")} onClick={()=>!isTaken&&setModal(p)}>
+                    <div key={i} className={"prow"+(isTaken?" taken":"")} onClick={()=>!isTaken&&!myPlayer?.pick&&setModal(p)}>
                       <span className="pnum">#{p.number}</span>
                       <span className="pname">{p.name}</span>
                       <PosTag pos={p.pos}/>
@@ -812,7 +941,20 @@ export default function App() {
             picked <strong style={{color:"#fff"}}>{game.winner.pick?.name}</strong> — First Goal Scorer!
           </div>
           <div className="pot">£{players.length}</div>
-          <div style={{color:"var(--muted)",fontSize:12,marginTop:6}}>Winner takes all 🎉</div>
+          <div style={{color:"var(--muted)",fontSize:12,marginTop:6,marginBottom:24}}>Winner takes all 🎉</div>
+          {isAdmin && (
+            <button className="btn" style={{background:"#25D36615",borderColor:"#25D36640",color:"#25D366",border:"1px solid",fontSize:16,padding:"12px",marginBottom:8}}
+              onClick={()=>{
+                const msg = "🏆 *Football Friends 1st Goal Scorer — We Have a Winner!*%0A%0A" +
+                  game.match?.home + " vs " + game.match?.away + "%0A%0A" +
+                  "🥇 *" + game.winner.name + "* wins £" + players.length + "!%0A" +
+                  "⚽ First goal scorer: *" + game.winner.pick?.name + "*%0A%0A" +
+                  "Well played everyone! 🎉";
+                window.open("https://wa.me/?text=" + msg, "_blank");
+              }}>
+              📲 Announce Winner on WhatsApp!
+            </button>
+          )}
         </div>
       </div>
     );

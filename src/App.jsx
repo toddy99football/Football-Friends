@@ -256,8 +256,6 @@ function HomeScreen({ gamesList, loading, err, setErr, playerName, setPlayerName
       setGame(d.game); setMyName(name);
       setIsAdmin(d.game.adminName === name);
       setCurrentGame(d.game);
-      if (d.game.status === "picking") { const screen = "picking"; loadSheet(d.game.match); }
-      else if (d.game.status === "results") { /* setScreen below */ }
       if (d.game.status === "picking") { setScreen("picking"); loadSheet(d.game.match); }
       else if (d.game.status === "results") setScreen("results");
       else setScreen("lobby");
@@ -816,35 +814,49 @@ export default function App() {
   const [playerName, setPlayerName] = useState("");
   const [playerPassword, setPlayerPassword] = useState("");
 
-  // On load: load all games
+  // On load: load games and restore session if possible
   useEffect(() => {
     async function init() {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const urlGameId = params.get("game");
-        if (urlGameId) {
-          // Direct link to specific game
-          const d = await api({action:"get", gameId:urlGameId});
-          if (d && d.game && Array.isArray(d.game.players)) {
-            setCurrentGame(d.game);
-            setGamesList([d.game]);
-          }
-        } else {
-          // Load all active games
-          const d = await api({action:"listGames"});
-          if (d && Array.isArray(d.games)) {
-            const active = d.games.filter(g => g.status !== "cancelled" && g.status !== "results");
-            const finished = d.games.filter(g => g.status === "results");
-            setGamesList([...active, ...finished]);
-            if (active.length === 1) setCurrentGame(active[0]);
-          }
+        // Load saved name
+        const savedName = localStorage.getItem("ff_name") || "";
+        if (savedName) setPlayerName(savedName);
+
+        // Load all active games
+        const d = await api({action:"listGames"});
+        const games = (d && Array.isArray(d.games)) ? d.games : [];
+        setGamesList(games);
+
+        // Try restore session
+        if (savedName && games.length > 0) {
+          try {
+            const sess = JSON.parse(localStorage.getItem("ff_session") || "null");
+            const params = new URLSearchParams(window.location.search);
+            const urlGameId = params.get("game");
+            const targetId = urlGameId || (sess && sess.gameId);
+            if (targetId) {
+              const gd = await api({action:"get", gameId:targetId});
+              if (gd && gd.game && Array.isArray(gd.game.players)) {
+                const wasIn = gd.game.players.find(p => p.name.toLowerCase() === savedName.toLowerCase());
+                if (wasIn) {
+                  setGame(gd.game);
+                  setMyName(wasIn.name);
+                  setIsAdmin(gd.game.adminName === wasIn.name);
+                  setCurrentGame(gd.game);
+                  if (gd.game.status === "picking") { setScreen("picking"); loadSheet(gd.game.match); }
+                  else if (gd.game.status === "results") setScreen("results");
+                  else setScreen("lobby");
+                  setLoading(false);
+                  return;
+                }
+              }
+            }
+          } catch {}
         }
       } catch {}
       setLoading(false);
     }
     init();
-    try { localStorage.removeItem("ff"); } catch {}
-    try { const n = localStorage.getItem("ff_name"); if(n) setPlayerName(n); } catch {}
   }, []);
 
   // Save session

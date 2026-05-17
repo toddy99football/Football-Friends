@@ -105,15 +105,19 @@ document.head.appendChild(styleEl);
 const COLS = ["#e63946","#ff6b35","#c9a227","#4361ee","#9b5de5","#00b4d8","#06d6a0","#fb8500","#e07a5f","#52b788"];
 
 const FIXTURES = [
-  { home:"Aston Villa", away:"Liverpool", date:"Fri 15 May", time:"20:00" },
-  { home:"Brentford", away:"Crystal Palace", date:"Sat 17 May", time:"12:30" },
-  { home:"Everton", away:"Sunderland", date:"Sat 17 May", time:"15:00" },
-  { home:"Leeds United", away:"Brighton", date:"Sat 17 May", time:"15:00" },
-  { home:"Manchester United", away:"Nottingham Forest", date:"Sat 17 May", time:"15:00" },
-  { home:"Newcastle United", away:"West Ham United", date:"Sat 17 May", time:"15:00" },
-  { home:"Arsenal", away:"Burnley", date:"Sun 18 May", time:"16:00" },
-  { home:"AFC Bournemouth", away:"Manchester City", date:"Tue 20 May", time:"20:00" },
-  { home:"Chelsea", away:"Tottenham Hotspur", date:"Tue 20 May", time:"20:00" },
+  // Today - Sun 17 May
+  { home:"Brentford", away:"Crystal Palace", date:"Sun 17 May", time:"12:30" },
+  { home:"Everton", away:"Sunderland", date:"Sun 17 May", time:"15:00" },
+  { home:"Leeds United", away:"Brighton", date:"Sun 17 May", time:"15:00" },
+  { home:"Manchester United", away:"Nottingham Forest", date:"Sun 17 May", time:"15:00" },
+  { home:"Newcastle United", away:"West Ham United", date:"Sun 17 May", time:"15:00" },
+  { home:"Wolves", away:"Fulham", date:"Sun 17 May", time:"15:00" },
+  // Mon 18 May
+  { home:"Arsenal", away:"Burnley", date:"Mon 18 May", time:"20:00" },
+  // Tue 19 May
+  { home:"AFC Bournemouth", away:"Manchester City", date:"Tue 19 May", time:"20:00" },
+  { home:"Chelsea", away:"Tottenham Hotspur", date:"Tue 19 May", time:"20:00" },
+  // Final day - Sun 24 May
   { home:"Brighton", away:"Manchester United", date:"Sun 24 May", time:"17:00" },
   { home:"Burnley", away:"Wolves", date:"Sun 24 May", time:"17:00" },
   { home:"Crystal Palace", away:"Arsenal", date:"Sun 24 May", time:"17:00" },
@@ -125,6 +129,62 @@ const FIXTURES = [
   { home:"Tottenham Hotspur", away:"Everton", date:"Sun 24 May", time:"17:00" },
   { home:"West Ham United", away:"Leeds United", date:"Sun 24 May", time:"17:00" },
 ];
+
+
+const HARDCODED_SHEETS = {
+  "Aston Villa|Liverpool": {
+    home: {
+      team: "Aston Villa", colour: "#95bfe5",
+      players: [
+        {number:1,  name:"Emiliano Martínez",   pos:"GK"},
+        {number:12, name:"Lucas Digne",          pos:"DEF"},
+        {number:14, name:"Pau Torres",           pos:"DEF"},
+        {number:4,  name:"Ezri Konsa",           pos:"DEF"},
+        {number:2,  name:"Matty Cash",           pos:"DEF"},
+        {number:8,  name:"Youri Tielemans",      pos:"MID"},
+        {number:3,  name:"Victor Lindelöf",      pos:"MID"},
+        {number:10, name:"Emiliano Buendía",     pos:"MID"},
+        {number:27, name:"Morgan Rogers",        pos:"MID"},
+        {number:7,  name:"John McGinn",          pos:"MID"},
+        {number:11, name:"Ollie Watkins",        pos:"FWD"},
+        {number:31, name:"Leon Bailey",          pos:"FWD"},
+        {number:18, name:"Tammy Abraham",        pos:"FWD"},
+        {number:6,  name:"Ross Barkley",         pos:"MID"},
+        {number:40, name:"Marco Bizot",          pos:"GK"},
+        {number:26, name:"Lamare Bogarde",       pos:"DEF"},
+        {number:16, name:"Andrés García",        pos:"DEF"},
+        {number:22, name:"Ian Maatsen",          pos:"DEF"},
+        {number:19, name:"Jadon Sancho",         pos:"FWD"},
+        {number:21, name:"Douglas Luiz",         pos:"MID"},
+      ]
+    },
+    away: {
+      team: "Liverpool", colour: "#e63946",
+      players: [
+        {number:1,  name:"Giorgi Mamardashvili", pos:"GK"},
+        {number:6,  name:"Milos Kerkez",         pos:"DEF"},
+        {number:4,  name:"Virgil van Dijk",      pos:"DEF"},
+        {number:5,  name:"Ibrahima Konaté",      pos:"DEF"},
+        {number:2,  name:"Joe Gomez",            pos:"DEF"},
+        {number:10, name:"Alexis Mac Allister",  pos:"MID"},
+        {number:38, name:"Ryan Gravenberch",     pos:"MID"},
+        {number:73, name:"Rio Ngumoha",          pos:"MID"},
+        {number:17, name:"Curtis Jones",         pos:"MID"},
+        {number:8,  name:"Dominik Szoboszlai",   pos:"MID"},
+        {number:18, name:"Cody Gakpo",           pos:"FWD"},
+        {number:14, name:"Federico Chiesa",      pos:"FWD"},
+        {number:53, name:"James McConnell",      pos:"MID"},
+        {number:75, name:"Talla Ndiaye",         pos:"FWD"},
+        {number:42, name:"Trey Nyoni",           pos:"MID"},
+        {number:26, name:"Andrew Robertson",     pos:"DEF"},
+        {number:11, name:"Mohamed Salah",        pos:"FWD"},
+        {number:7,  name:"Florian Wirtz",        pos:"MID"},
+        {number:28, name:"Freddie Woodman",      pos:"GK"},
+        {number:79, name:"Will Wright",          pos:"MID"},
+      ]
+    }
+  }
+};
 
 function uid() { return Math.random().toString(36).substr(2,8).toUpperCase(); }
 
@@ -257,134 +317,38 @@ export default function App() {
     setLoadingSheet(true);
     setTeamSheet(null);
 
-    // Hardcoded confirmed lineups for tonight - used as fallback if API fails
-    const hardcoded = {
-      "Aston Villa|Liverpool": {
-        home: {
-          team: "Aston Villa", colour: "#95bfe5",
-          players: [
-            // Confirmed starters
-            {number:1,  name:"Emiliano Martínez",   pos:"GK"},
-            {number:12, name:"Lucas Digne",          pos:"DEF"},
-            {number:14, name:"Pau Torres",           pos:"DEF"},
-            {number:4,  name:"Ezri Konsa",           pos:"DEF"},
-            {number:2,  name:"Matty Cash",           pos:"DEF"},
-            {number:8,  name:"Youri Tielemans",      pos:"MID"},
-            {number:3,  name:"Victor Lindelöf",      pos:"MID"},
-            {number:10, name:"Emiliano Buendía",     pos:"MID"},
-            {number:27, name:"Morgan Rogers",        pos:"MID"},
-            {number:7,  name:"John McGinn",          pos:"MID"},
-            {number:11, name:"Ollie Watkins",        pos:"FWD"},
-            // Subs
-            {number:31, name:"Leon Bailey",          pos:"FWD"},
-            {number:18, name:"Tammy Abraham",        pos:"FWD"},
-            {number:6,  name:"Ross Barkley",         pos:"MID"},
-            {number:40, name:"Marco Bizot",          pos:"GK"},
-            {number:26, name:"Lamare Bogarde",       pos:"DEF"},
-            {number:16, name:"Andrés García",        pos:"DEF"},
-            {number:22, name:"Ian Maatsen",          pos:"DEF"},
-            {number:19, name:"Jadon Sancho",         pos:"FWD"},
-            {number:21, name:"Douglas Luiz",         pos:"MID"},
-          ]
-        },
-        away: {
-          team: "Liverpool", colour: "#e63946",
-          players: [
-            // Confirmed starters
-            {number:1,  name:"Giorgi Mamardashvili", pos:"GK"},
-            {number:6,  name:"Milos Kerkez",         pos:"DEF"},
-            {number:4,  name:"Virgil van Dijk",      pos:"DEF"},
-            {number:5,  name:"Ibrahima Konaté",      pos:"DEF"},
-            {number:2,  name:"Joe Gomez",            pos:"DEF"},
-            {number:10, name:"Alexis Mac Allister",  pos:"MID"},
-            {number:38, name:"Ryan Gravenberch",     pos:"MID"},
-            {number:73, name:"Rio Ngumoha",          pos:"MID"},
-            {number:17, name:"Curtis Jones",         pos:"MID"},
-            {number:8,  name:"Dominik Szoboszlai",   pos:"MID"},
-            {number:18, name:"Cody Gakpo",           pos:"FWD"},
-            // Subs
-            {number:14, name:"Federico Chiesa",      pos:"FWD"},
-            {number:53, name:"James McConnell",      pos:"MID"},
-            {number:75, name:"Talla Ndiaye",         pos:"FWD"},
-            {number:42, name:"Trey Nyoni",           pos:"MID"},
-            {number:26, name:"Andrew Robertson",     pos:"DEF"},
-            {number:11, name:"Mohamed Salah",        pos:"FWD"},
-            {number:7,  name:"Florian Wirtz",        pos:"MID"},
-            {number:28, name:"Freddie Woodman",      pos:"GK"},
-            {number:79, name:"Will Wright",          pos:"MID"},
-          ]
-        }
-      }
-    };
+    // Check hardcoded first for speed
+    var key = match.home + "|" + match.away;
+    if (HARDCODED_SHEETS[key]) {
+      setTeamSheet(HARDCODED_SHEETS[key]);
+      setSheetTab("home");
+      setLoadingSheet(false);
+      return;
+    }
 
-    // Try API first - two step: search then format
+    // Use dedicated lineup API endpoint
     try {
-      const now = new Date();
-      const dateStr = now.toLocaleDateString("en-GB", {weekday:"short", day:"numeric", month:"short", year:"numeric"});
-
-      // Step 1: search for lineup
-      const searchResult = await aiCall({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        tools: [{type:"web_search_20250305", name:"web_search"}],
-        messages: [{
-          role: "user",
-          content: "Search for the confirmed starting lineup for " + match.home + " vs " + match.away + " Premier League on " + dateStr + ". List both teams starting 11 and substitutes with shirt numbers."
-        }]
+      const res = await fetch("/api/lineup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ home: match.home, away: match.away })
       });
-
-      const searchText = (searchResult.content || []).map(function(b) { return b.text || ""; }).join(" ");
-
-      if (searchText && searchText.length > 100) {
-        // Step 2: format into JSON - no tools, strict output
-        const homeTeam = match.home;
-        const awayTeam = match.away;
-        const formatPrompt = "You must output ONLY a valid JSON array with no other text. Convert this football lineup into this exact format: " +
-          '[{"team":"HOMETEAM","colour":"#95bfe5","players":[{"number":1,"name":"Player Name","pos":"GK"}]},{"team":"AWAYTEAM","colour":"#e63946","players":[]}]' +
-          " Replace HOMETEAM with " + homeTeam + " and AWAYTEAM with " + awayTeam + "." +
-          " pos values must be exactly GK, DEF, MID, or FWD." +
-          " Include all starters and subs. Here is the lineup: " + searchText;
-
-        const formatResult = await aiCall({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
-          messages: [
-            { role: "user", content: "You are a JSON-only API. Never output text, only raw JSON arrays." },
-            { role: "assistant", content: "[" },
-            { role: "user", content: formatPrompt }
-          ]
-        });
-
-        var formatText = (formatResult.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text || ""; }).join("").trim();
-        if (!formatText.startsWith("[")) formatText = "[" + formatText;
-        var s2 = formatText.indexOf("[");
-        var e2 = formatText.lastIndexOf("]");
-
-        if (s2 >= 0 && e2 > s2) {
-          var parsed = JSON.parse(formatText.slice(s2, e2 + 1));
-          if (Array.isArray(parsed) && parsed.length >= 2 && Array.isArray(parsed[0] && parsed[0].players) && parsed[0].players.length >= 10 && Array.isArray(parsed[1] && parsed[1].players) && parsed[1].players.length >= 10) {
-            setTeamSheet({home: parsed[0], away: parsed[1]});
-            setSheetTab("home");
-            setLoadingSheet(false);
-            return;
-          }
-        }
+      const data = await res.json();
+      if (data.home && data.away && Array.isArray(data.home.players) && data.home.players.length >= 5) {
+        setTeamSheet({ home: data.home, away: data.away });
+        setSheetTab("home");
+        setLoadingSheet(false);
+        return;
       }
-      throw new Error("Could not parse lineup");
-    } catch(apiErr) {
-      console.log("API team sheet failed:", apiErr.message);
+    } catch(e) {
+      console.log("Lineup API failed:", e.message);
     }
 
-        // Fall back to hardcoded or generic
-    const key = match.home + "|" + match.away;
-    if (hardcoded[key]) {
-      setTeamSheet(hardcoded[key]);
-    } else {
-      setTeamSheet({
-        home: {team: match.home, colour:"#e63946", players: fallback(match.home, "home")},
-        away: {team: match.away, colour:"#4361ee", players: fallback(match.away, "away")}
-      });
-    }
+    // Generic fallback
+    setTeamSheet({
+      home: { team: match.home, colour: "#e63946", players: fallback(match.home, "home") },
+      away: { team: match.away, colour: "#4361ee", players: fallback(match.away, "away") }
+    });
     setSheetTab("home");
     setLoadingSheet(false);
   }
